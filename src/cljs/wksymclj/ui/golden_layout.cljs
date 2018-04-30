@@ -58,12 +58,15 @@
                                                layout]
                                         :or {on-complete init-window-event-handers!}}]
   (let [_component-name "my-component"
+        _panel-container-class "panel-container"
         layout-spec (or layout
                         (let [make-subcomponent (fn [label]
-                                                  {:type "react-component"
-                                                   :component _component-name
-                                                   :props {:id (str "panel-" label)
-                                                           :label label}})]
+                                                  (let [panel-id (str "panel-" label)]
+                                                    {:type "react-component"
+                                                     :component _component-name
+                                                     :title panel-id
+                                                     :props {:id panel-id
+                                                             :label label}}))]
                           {:content
                            [{:type "row"
                              :content
@@ -101,8 +104,12 @@
             (merge (select-keys props [:id])
                    {:style {:display "flex"
                             :width "100%"
-                            :height "100%"}})
-            [:h1 "HELLO! "
-             (:label props)
-             ": " (:id props)]])}))
+                            :height "100%"}}
+                   {:dangerouslySetInnerHTML
+                    {:__html
+                     (str "<div class=\"" _panel-container-class "\">"
+                          "<h2>"
+                          (:label props) " @ " (:id props)
+                          "</h2>"
+                          "</div>")}})])}))
       (.init))))
