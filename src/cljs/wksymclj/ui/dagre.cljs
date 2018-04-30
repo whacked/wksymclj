@@ -74,3 +74,20 @@
                    (js->clj % :keywordize-keys true)
                    (js->clj (.edge dagre-graph %)
                             :keywordize-keys true))))))
+
+;; #+pure
+(defn get-node-id-mapping
+  ([node-seq] (get-node-id-mapping 0))
+  ([node-seq start-id]
+   (loop [remain-node node-seq
+          node-id-mapping {}]
+     (if (empty? remain-node)
+       node-id-mapping
+       (let [node (first remain-node)
+             node-name (:name node)
+             node-id (node-id-mapping node-name
+                                      (+ start-id
+                                         (count node-id-mapping)))]
+         (recur (rest remain-node)
+                (assoc node-id-mapping
+                       node-name node-id)))))))
