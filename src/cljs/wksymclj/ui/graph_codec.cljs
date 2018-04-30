@@ -41,6 +41,10 @@
 
         mx-cell-seq (->> dagre-nodes
                          (map dagre-node-to-mxgraph-vertex)
+                         ;; WARNING: this is a risky call.
+                         ;; From dagre nodes, the revisited nodes
+                         ;; will simply show up multiple times.
+                         ;; we *probably* need to filter them out.
                          (distinct)
                          (concat [{:_id 0}
                                   {:_id 1 :_parent 0}]))
