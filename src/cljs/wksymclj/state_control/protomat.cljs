@@ -49,6 +49,18 @@
 ;; </common>
 
 
+;; <a-state init>
+;; this state is special
+(def $a--base-status {:accepted? false
+                      :checkpoint nil
+                      :state-index 0
+                      :start-index 0
+                      :stream-index 0 ;; this advances with stream
+                      :value nil})
+;; </a-state init>
+
+
+
 
 ;; disallow spaces and commas in state names
 (def $SIGNAL-PATTERN-STRING-SEPARATOR ", ")
@@ -76,6 +88,13 @@
         (apply str))
    $SIGNAL-PATTERN-STRING-SEPARATOR))
 
+(defn match-matcher-against-input-sequence
+  [matcher input-pattern]
+  (some->> input-pattern
+           (re-find matcher)
+           (drop 1)
+           (map keyword)))
+
 (defn match-pattern-against-input-sequence
   ([pattern-seq input-seq]
    (match-pattern-against-input-sequence pattern-seq input-seq identity))
@@ -84,9 +103,8 @@
          input-pattern (map signaler input-seq)]
      (some->> input-pattern
               (signal-pattern-to-string)
-              (re-find matcher)
-              (drop 1)
-              (map keyword)))))
+              (match-matcher-against-input-sequence
+               matcher)))))
 
 (comment
   ;; TEST: regex transformer
@@ -131,7 +149,50 @@
                  "-- expected: " (pr-str expected) "\n"
                  "-- received: " (pr-str received)))))))))
 
+(defrecord StringLikePatternMatcher
+    [matcher signaler reducer])
 
+(defn p--compile [pattern signaler reducer]
+  (StringLikePatternMatcher.
+   (signal-pattern-to-string-matcher pattern)
+   signaler
+   reducer))
+
+(defn p--match [slp-matcher state stream]
+  (let [{:keys [matcher signaler reducer]}
+        slp-matcher]
+    (if-let [matched-state (some->> stream
+                                    (map signaler)
+                                    (signal-pattern-to-string)
+                                    (match-matcher-against-input-sequence
+                                     matcher))]
+      (do
+        (println slp-matcher)
+        (assoc $a--base-status
+               :accepted? true
+               :pattern matched-state
+               :value (reduce reducer state matched-state)))
+      $a--base-status)))
+
+(comment
+  ;; test slp-matcher
+  (let [slpm (p--compile ["my-tag" "foo-tag" :bar-bar]
+                         (fn [input] (-> input (:tag) (keyword)))
+                         (fn [state input]
+                           (-> state
+                               (update-in [:history]
+                                          (fn [hist]
+                                            (-> hist
+                                                (vec)
+                                                (conj input)))))))
+        input-sequence-with-decoy [{:tag :left-FAKE}
+                                   {:tag "my-tag"}
+                                   {:tag "foo-tag"}
+                                   {:tag :bar-bar}
+                                   {:tag :right-FAKE}]]
+    (p--match slpm
+              {:hello "world"}
+              input-sequence-with-decoy)))
 
 ;; <event management>
 (def task-chan (chan 1))
