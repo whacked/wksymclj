@@ -48,6 +48,91 @@
       (- trigger-time now))))
 ;; </common>
 
+
+
+;; disallow spaces and commas in state names
+(def $SIGNAL-PATTERN-STRING-SEPARATOR ", ")
+
+(defn signal-pattern-to-string-matcher
+  [signal-pattern]
+  (->> signal-pattern
+       (map (fn [pattern]
+              (case pattern
+                :-bound-begin "^"
+                :-bound-end "$"
+                (str "(" (name pattern) ")"))))
+       (interpose $SIGNAL-PATTERN-STRING-SEPARATOR)
+       (apply str)
+       (re-pattern)))
+
+(defn signal-pattern-to-string
+  [signal-pattern]
+  (str
+   $SIGNAL-PATTERN-STRING-SEPARATOR
+   (->> signal-pattern
+        (map (fn [pattern]
+               (str (name pattern))))
+        (interpose $SIGNAL-PATTERN-STRING-SEPARATOR)
+        (apply str))
+   $SIGNAL-PATTERN-STRING-SEPARATOR))
+
+(defn match-pattern-against-input-sequence
+  ([pattern-seq input-seq]
+   (match-pattern-against-input-sequence pattern-seq input-seq identity))
+  ([pattern-seq input-seq signaler]
+   (let [matcher (signal-pattern-to-string-matcher pattern-seq)
+         input-pattern (map signaler input-seq)]
+     (some->> input-pattern
+              (signal-pattern-to-string)
+              (re-find matcher)
+              (drop 1)
+              (map keyword)))))
+
+(comment
+  ;; TEST: regex transformer
+  (let [pattern-sequence-free ["my-tag" "foo-tag" :bar-bar]
+        pattern-sequence-bound-begin (concat [:-bound-begin] pattern-sequence-free)
+        pattern-sequence-bound-end (concat pattern-sequence-free [:-bound-end])
+        pattern-sequence-bound-both (concat [:-bound-begin] pattern-sequence-free [:-bound-end])
+        
+        input-sequence-with-decoy [{:tag :left-FAKE}
+                                   {:tag "my-tag"}
+                                   {:tag "foo-tag"}
+                                   {:tag :bar-bar}
+                                   {:tag :right-FAKE}]
+        signaler (fn [input] (-> input (:tag) (keyword)))
+        expected-full-match [:my-tag :foo-tag :bar-bar]
+        ]
+    (for [[desc expected pattern-seq input-seq]
+          [["no bound" expected-full-match
+            pattern-sequence-free input-sequence-with-decoy]
+           ["bound left should not match extra left" nil
+            pattern-sequence-bound-begin input-sequence-with-decoy]
+           ["bound left should match without extra left" expected-full-match
+            pattern-sequence-bound-begin (drop 1 input-sequence-with-decoy)]
+           ["bound right should not match extra left" nil
+            pattern-sequence-bound-end input-sequence-with-decoy]
+           ["bound right should match without extra right" expected-full-match
+            pattern-sequence-bound-end (drop-last input-sequence-with-decoy)]
+           ["bound both should not match extra ends" nil
+            pattern-sequence-bound-both input-sequence-with-decoy]
+           ["bound both should match without extra ends" expected-full-match
+            pattern-sequence-bound-both (->> input-sequence-with-decoy
+                                             (drop 1)
+                                             (drop-last))]]]
+      (let [received (match-pattern-against-input-sequence
+                      pattern-seq input-seq signaler)
+            ok? (= received expected)]
+        (println
+         (str
+          "* [" (if ok? "PASS" "FAIL") "] " desc
+          (when-not ok?
+            (str "\n"
+                 "-- expected: " (pr-str expected) "\n"
+                 "-- received: " (pr-str received)))))))))
+
+
+
 ;; <event management>
 (def task-chan (chan 1))
 ;; (close! task-chan)
