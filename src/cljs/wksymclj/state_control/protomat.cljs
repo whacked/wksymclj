@@ -281,18 +281,19 @@
                    (recur)))
                (trigger-xns! :pre ((:pre spec) spec world)))))))
 
-(defrecord StateMatcher [value reducer])
+(defrecord StateMatcher [value
+                         reducer
+                         bound-begin?
+                         bound-end?
+                         ])
 
-;; this state is special
-(def a--status (atom {:accepted? false
-                      :checkpoint nil
-                      :state-index 0
-                      :start-index 0
-                      :stream-index 0 ;; this advances with stream
-                      :value nil}))
+(def a--status (atom $a--base-status))
 
 (defn a--$ [reducer-key]
   {:-reducer reducer-key})
+
+(defn a--> [callable]
+  {:-transitioner callable})
 
 (defn a--compile [state-sequence
                   opt]
@@ -305,16 +306,30 @@
              out
              (let [item (first ss)]
                (recur (rest ss)
-                      (if-let [rd-key (:-reducer item)]
-                        (conj (vec (butlast out))
-                              (StateMatcher. (:value (last out))
-                                             rd-key))
-                        (conj out (StateMatcher. item nil)))))))))
+                      (let [maybe-rd-key (:-reducer item)
+                            last-index (dec (count out))
+                            update-last (partial update out last-index)]
+                        (cond maybe-rd-key
+                              (update-last
+                               (fn [sm]
+                                 (assoc sm :-reducer maybe-rd-key)))
+                              
+                              (= :-bound-begin item)
+                              (update-last
+                               (fn [sm]
+                                 (assoc sm :bound-begin? true)))
+                              
+                              (= :-bound-end item)
+                              (update-last
+                               (fn [sm]
+                                 (assoc sm :bound-end? true)))
+                              
+                              :else
+                              (conj out (StateMatcher. item nil nil nil))))))))))
 
 (defn a--find [machine init-state stream]
   (let [world init-state
         *a--history* (atom [])]
-    (dlog "In find\n")
     (let [get-signal (:signal machine)
           match-state-seq (:match-seq machine)
           match-value-seq (map :value match-state-seq)
@@ -334,33 +349,33 @@
           (let [stream-input (first input-stream)
                 stream-signal (get-signal stream-input)
                 ]
-            (dlog (str stream-signal))
-            (dlog (str "searching stream "
-                       (count input-stream)
-                       " "
-                       stream-signal
-                       " -- "
-                       (first match-value-seq)
-                       " QUEUE: "
-                       (count queue)
-                       " <si> "
-                       ))
-            ;; (dlog (clj->js input))
             (let [idx-match-seq-end
-                  (loop [idx-match-seq 0]
-                    (if (and (< idx-match-seq match-size)
-                             (< idx-match-seq (count input-stream))
-                             (= (nth match-value-seq idx-match-seq)
-                                (get-signal (nth input-stream idx-match-seq))))
-                      (do
-                        (dlog (str ">>> RUNREDUCE"
-                                   ))
-                        (recur (inc idx-match-seq)))
-                      idx-match-seq))]
-              (dlog
-               (str "MATCH SIZE: " idx-match-seq-end))
-              
-              (if (= idx-match-seq-end match-size)
+                  (loop [pair-remain (map vector
+                                          match-state-seq
+                                          input-stream)
+                         idx-match-seq 0]
+                    (if (empty? pair-remain)
+                      idx-match-seq
+                      (let [[matcher input] (first pair-remain)
+                            match-value (:value matcher)]
+                        (if (= match-value (get-signal input))
+                          (recur (rest pair-remain)
+                                 (inc idx-match-seq))
+                          idx-match-seq))))
+                  ]
+
+              (if (and (= idx-match-seq-end match-size)
+                       ;; if right-bounded, the final symbol should be
+                       ;; the same as the final signal from the matchers
+                       ;; FIXME: this should be at a higher level, along
+                       ;; with bound-begin checking
+                       (if (-> (nth match-state-seq (dec idx-match-seq-end))
+                               (:bound-end?))
+                         (do
+                           ;; end / right bound check
+                           (= (get-signal (last input-stream))
+                              (last match-value-seq)))
+                         true))
                 ;; have a match, run reducers
                 (let [
                       ;; NOTE!
@@ -374,9 +389,6 @@
                       reducer-map (assoc (:reducers machine)
                                          :-noop (fn [state input] state))
                       ]
-                  ;; (dlog "%c** ** ** run reducers" "color:white;background:red;")
-                  ;; (dlog (clj->js reducer-map))
-                  ;; (dlog "RESULTANT STATE")
                   (assoc @a--status
                          :state-index (dec idx-match-seq-end)
                          :stream-index (+ start-idx (dec idx-match-seq-end))
@@ -385,15 +397,13 @@
                                        state init-state]
                                   (if-not (< idx idx-match-seq-end)
                                     state
-                                    (let [reducer (reducer-map
-                                                   (or (:reducer (nth match-state-seq idx))
-                                                       :-noop))
+                                    (let [maybe-callable-reducer (:-reducer (nth match-state-seq idx))
+                                          reducer (if (fn? maybe-callable-reducer)
+                                                    maybe-callable-reducer
+                                                    (reducer-map
+                                                     (or maybe-callable-reducer
+                                                         :-noop)))
                                           input (nth input-stream idx)]
-                                      (dlog (str
-                                             "COMPARE: "
-                                             (clj->js (nth match-value-seq idx))
-                                             " -- "
-                                             (clj->js (get-signal input))))
                                       (recur (inc idx)
                                              (reducer state input)))))))
                 (recur (+ start-idx 1 idx-match-seq-end)
@@ -403,6 +413,17 @@
                        (rest input-stream))))
             
             )))
+      
+      (when-let [match-idx (is-subvector? match-value-seq signal-list)]
+        (swap! a--status assoc
+               :stream-index (+ (@a--status :stream-index)
+                                match-idx)
+               :accepted? true
+               :value (if-let [reducer (:reducer (last match-state-seq))]
+                        (reducer world
+                                 ;; if use is-subvector?
+                                 ;; this becomes troublesome
+                                 input-state))))
       
       )))
 ;; </event management>
