@@ -150,49 +150,87 @@
                  "-- received: " (pr-str received)))))))))
 
 (defrecord StringLikePatternMatcher
-    [matcher signaler reducer])
+    [matcher signaler reducer completer])
 
-(defn p--compile [pattern signaler reducer]
+(defn slpm--default-reducer [state input]
+  (-> state
+      (update-in [:history]
+                 (fn [hist]
+                   (-> hist
+                       (vec)
+                       (conj input))))))
+
+(defn slpm--build [pattern signaler reducer completer]
   (StringLikePatternMatcher.
    (signal-pattern-to-string-matcher pattern)
    signaler
-   reducer))
+   reducer
+   completer))
 
-(defn p--match [slp-matcher state stream]
-  (let [{:keys [matcher signaler reducer]}
+(defn slpm--match [slp-matcher state stream]
+  (let [{:keys [matcher signaler reducer completer]}
         slp-matcher]
     (if-let [matched-state (some->> stream
                                     (map signaler)
                                     (signal-pattern-to-string)
                                     (match-matcher-against-input-sequence
                                      matcher))]
-      (do
-        (println slp-matcher)
-        (assoc $a--base-status
-               :accepted? true
-               :pattern matched-state
-               :value (reduce reducer state matched-state)))
+      (-> (assoc $a--base-status
+                 :accepted? true
+                 :pattern matched-state
+                 :value (reduce reducer state matched-state))
+          (completer))
       $a--base-status)))
 
 (comment
   ;; test slp-matcher
-  (let [slpm (p--compile ["my-tag" "foo-tag" :bar-bar]
-                         (fn [input] (-> input (:tag) (keyword)))
-                         (fn [state input]
-                           (-> state
-                               (update-in [:history]
-                                          (fn [hist]
-                                            (-> hist
-                                                (vec)
-                                                (conj input)))))))
+  (let [slpm (slpm--build ["my-tag" "foo-tag" :bar-bar]
+                          (fn [input] (-> input (:tag) (keyword)))
+                          slpm--default-reducer
+                          (fn [end-state]
+                            (js/console.log "%cALL DONE"
+                                            "color:yellow;background:blue;font-weight:bold;")
+                            (println end-state)))
         input-sequence-with-decoy [{:tag :left-FAKE}
                                    {:tag "my-tag"}
                                    {:tag "foo-tag"}
                                    {:tag :bar-bar}
                                    {:tag :right-FAKE}]]
-    (p--match slpm
-              {:hello "world"}
-              input-sequence-with-decoy)))
+    (slpm--match slpm
+                 {:hello "world"}
+                 input-sequence-with-decoy)))
+
+(defn slpm--match-with-precedence
+  [ordered-pattern-seq state 
+   stream ;; task seq
+   ]
+  (loop [remain-pattern ordered-pattern-seq
+         match-result nil]
+    ;; NOTE: no rejected state expected or being captured
+    (if (or (:accepted? match-result)
+            (empty? remain-pattern))
+      match-result
+      ;; we will accept either a straight function for matching,
+      ;; or an StringLikePatternMatcher
+      (let [pattern-matcher (first remain-pattern)]
+        (recur (rest remain-pattern)
+               (assoc
+                (if (fn? pattern-matcher)
+                  ;; straight function call;
+                  ;; [current-state stream-input] -> next-state
+                  (pattern-matcher
+                   (-> state
+                       (update-in [:value :history]
+                                  (fn [cur]
+                                    (concat cur stream)))
+                       (assoc :stream-index (dec (count stream))
+                              :accepted? true))
+                   (last stream))
+                  (slpm--match
+                   pattern-matcher
+                   (assoc state :history stream)
+                   stream))
+                :pattern pattern-matcher))))))
 
 ;; <event management>
 (def task-chan (chan 1))
