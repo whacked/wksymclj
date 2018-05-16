@@ -174,12 +174,26 @@
 (declare converterMapping)
 
 (do
-  
+
+  (defn get-node-type [node]
+    (aget node "type"))
+
+  (defn getNodeTextContent [node]
+    (this-as self
+      (if (= (get-node-type node)
+             (aget OrgNode "types" "text"))
+        (.call escapeSpecialChars self (aget node "value"))
+        (if-not (aget node "children")
+          nil
+          (->> (aget node "children")
+               (array-seq)
+               (map (fn [node]
+                      (.call getNodeTextContent self node)))
+               (apply str))))))
+
   (defn getConverter [node]
     (this-as self
       (let [node-type (aget node "type")]
-        (js/console.info (str "TYPE: %c" node-type)
-                         "color:white;background:blue;font-weight:bold;")
         (js/console.log "matched converter" (converterMapping node-type))
         (or (converterMapping node-type)
             (converterMapping "default")))))
@@ -202,7 +216,14 @@
 
       (let [ ;;child-text (self.getChildText node recordHeader insideCodeElement)
             aux-data (compute-aux-data-for-node node)]
-        (js/console.info "convertNode: self is" self)
+        (js/console.info
+         (str
+          "[%c"
+          (aget node "type")
+          "%c] convertNode: self is "
+          self)
+         "color:white;background:blue;font-weight:bold;"
+         "color:black;background:none;")
         (-> (getConverter node)
             (.call self node recordHeader insideCodeElement)))
       
@@ -383,7 +404,7 @@
      "dashed" (fn [node]
                 (this-as self
                   [:del
-                   {:class (get-org-class-name "dashed")}
+                   {:class (get-org-class-name self "dashed")}
                    (.call getChildText self node)]))
 
      "horizontalRule" (fn [node] [:hr])
@@ -399,89 +420,98 @@
      "italic" (fn [node]
                 (this-as self
                   [:i
-                   {:class (get-org-class-name "italic")}
+                   {:class (get-org-class-name self "italic")}
                    (.call getChildText self node)]))
 
      "underline" (fn [node]
                    (this-as self
                      [:span
-                      {:class (get-org-class-name "underline")}
+                      {:class (get-org-class-name self "underline")}
                       (.call getChildText self node)]))
      
-     ;;  :directive (fn [node]
-     ;;               (var child-text (this.getChildText node)
-     ;;                    aux-data (compute-aux-data-for-node node))
+     "directive" (fn [node]
+                   (this-as self
+                     (let [child-text (.call getChildText self node)
+                           aux-data (compute-aux-data-for-node node)]
 
-     ;;               (switch node.directiveName
-     ;;                       ("quote"
-     ;;                        [:blockquote
-     ;;                         (merge aux-data
-     ;;                                {:style {:font-family "Verdana"}}
-     ;;                                )
-     ;;                         child-text])
-     ;;                       ("example"
-     ;;                        [:pre aux-data
-     ;;                         ;; SPECIAL CASE
-     ;;                         (apply-to-textual-element-in-miccup
-     ;;                          child-text
-     ;;                          string-with-transclude-to-miccup)
-     ;;                         ])
-     ;;                       ("src"
-     ;;                        (var codeLanguage (or (get node.directiveArguments 0)
-     ;;                                              "unknown"))
-     ;;                        [:pre
-     ;;                         [:code
-     ;;                          (merge aux-data
-     ;;                                 {:class (+ "language-" codeLanguage)})
-     ;;                          child-text]])
-     ;;                       ([:html "html:"]
-     ;;                        (throw (new Error "fixme"))
-     ;;                        (assign text (this.convertHTML node childText auxData)))
-     ;;                       (default
-     ;;                        (console.warn "FALLBACK IN DIRECTIVENAME SWITCH ON"
-     ;;                                      node.directiveName)
-     ;;                        (console.log node)
-     ;;                        (assign text
-     ;;                                (if (and this.exportOptions.customDirectiveHandler
-     ;;                                         (get this.exportOptions.customDirectiveHandler node.directiveName))
-     
-     ;;                                  ;; note this may be a js gotcha: ref converter.js:225
-     ;;                                  (|> (get this.exportOptions.customDirectiveHandler
-     ;;                                           [node.directiveName])
-     ;;                                      (.call this node childText auxData))
-     ;;                                  childText)))))
+                       (case (aget node "directiveName")
+                         "quote"
+                         [:blockquote
+                          (merge aux-data
+                                 {:style {:font-family "Verdana"}})
+                          child-text]
+                         
+                         "example"
+                         [:pre aux-data
+                          ;; SPECIAL CASE
+                          (do
+                            ;; FIXME
+                            #_(apply-to-textual-element-in-miccup
+                             child-text
+                             string-with-transclude-to-miccup)
+                            child-text)]
+                         
+                         "src"
+                         [:pre
+                          [:code
+                           (merge aux-data
+                                  {:class (str "language-"
+                                               (or (aget node "directiveArguments" 0)
+                                                   "unknown"))})
+                           child-text]]
+                         
+                         [:html "html:"]
+                         (throw (js/Error. "fixme"))
+                         #_(assign text (this.convertHTML node childText auxData))
+                         
+                         (do
+                           (js/console.warn "FAILBACK IN DIRECTIVENAME SWITCH ON"
+                                            (aget node "directiveName"))
+                           (js/console.log node)
+                           (if (and (get-export-option self "customDirectiveHandler")
+                                    (-> (get-export-option self "customDirectiveHandler")
+                                        (get (aget node "directiveName"))))
+                             ;; note this may be a js gotcha: ref converter.js:225
+                             ;; FIXME
+                             ;; (-> (get-export-option self "customDirectiveHandler")
+                             ;;     (get [(aget node "directiveName")])
+                             ;;     (.call this node child-text aux-data))
+                             child-text))))))
      
      "example" (fn [node]
                  ;; aux-data?
                  (this-as self
                   [:pre (.call getChildText self node)]))
 
-     ;;  :link (fn [node]
-     ;;          (var self this)
-     ;;          (var srcParameterStripped
-     ;;               (node.src.replace (regex "\\?.*$") "")
-     ;;               imageExtensionPattern
-     ;;               (re-pattern (str "(?i)("
-     ;;                                (-> ["bmp" "png" "jpeg" "jpg" "gif" "tiff"
-     ;;                                     "tif" "xbm" "xpm" "pbm" "pgm" "ppm" "svg"]
-     ;;                                    (.join "|"))
-     ;;                                ")$"))
-     ;;               maybe-match
-     ;;               (.exec imageExtensionPattern srcParameterStripped))
-     ;;          (if (not maybe-match)
-     ;;            [:a
-     ;;             {:class (self.orgClassName "link")
-     ;;              :href node.src}
-     ;;             (this.getChildText node)]
-     ;;            (let []
-     ;;              (var aux-data (compute-aux-data-for-node node))
-     ;;              (var imgText (self.getNodeTextContent node))
-     ;;              [:img
-     ;;               (merge
-     ;;                aux-data
-     ;;                {:src node.src
-     ;;                 :alt imgText
-     ;;                 :title imgText})])))
+     "link" (fn [node]
+              (this-as self
+                (let [node-src (aget node "src")
+                      srcParameterStripped (-> node-src
+                                               (clojure.string/replace #"\\?.*$" ""))
+                      imageExtensionPattern
+                      (re-pattern (str "(?i)("
+                                       (->> ["bmp" "png" "jpeg" "jpg" "gif" "tiff"
+                                             "tif" "xbm" "xpm" "pbm" "pgm" "ppm" "svg"]
+                                            (interpose "|")
+                                            (apply str))
+                                       ")$"))
+                      maybe-match
+                      (.exec imageExtensionPattern srcParameterStripped)]
+                  
+                  (if-not maybe-match
+                    [:a
+                     {:class (get-org-class-name self "link")
+                      :href node-src}
+                     (.call getChildText self node)]
+                    (let [aux-data (compute-aux-data-for-node node)
+                          imgText (.call getNodeTextContent self node)]
+                      
+                      [:img
+                       (merge
+                        aux-data
+                        {:src node-src
+                         :alt imgText
+                         :title imgText})])))))
 
      ;; converter.js:248
      "text" (fn [node insideCodeElement]
@@ -539,10 +569,10 @@
                            ;; definitionItem
                            [:dl
                             [:dt
-                             {:class (get-org-class-name "description-term")}
+                             {:class (get-org-class-name self "description-term")}
                              (.call convertNodesInternal self node.term)]
                             [:dd
-                             {:class (get-org-class-name "description-description")}
+                             {:class (get-org-class-name self "description-description")}
                              child-text]]
 
                            ;; listItem
@@ -601,7 +631,7 @@
                 (let [recordHeader false
                       insideCodeElement false]
                   [:code
-                   {:class (get-org-class-name "code")}
+                   {:class (get-org-class-name self "code")}
                    (.call getChildText self node recordHeader insideCodeElement)])))
 
      "header" (fn [node & optional-args]
@@ -714,17 +744,6 @@
               
               "escapeSpecialChars" escapeSpecialChars
 
-              ;; :getNodeTextContent (fn [node]
-              ;;                       (var self this)
-              ;;                       (if (= node.type OrgNode.types.text)
-              ;;                         (self.escapeSpecialChars node.value)
-              ;;                         (if (not node.children)
-              ;;                           nil
-              ;;                           (|> (node.children.map
-              ;;                                self.getNodeTextContent
-              ;;                                self)
-              ;;                               (.join "")))))
-              
               "getChildText" getChildText
               
 
