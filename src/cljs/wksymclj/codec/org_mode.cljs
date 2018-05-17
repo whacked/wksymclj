@@ -2,7 +2,7 @@
   (:require [cljs.nodejs :as nodejs]
             ))
 
-(def $print-debug-to-console? false)
+(def $print-debug-to-console? true)
 (if $print-debug-to-console?
   (do
     (defn dlog [& argv]
@@ -26,7 +26,8 @@
 (def $org-js-html-class-prefix "org-")
 (def $org-js-html-id-prefix "org-")
 (def $org2hiccup-default-options
-  {:htmlClassPrefix $org-js-html-class-prefix})
+  {:htmlClassPrefix $org-js-html-class-prefix
+   :htmlIdPrefix $org-js-html-id-prefix})
 
 (defn org2html
   ([org-src]
@@ -175,7 +176,13 @@
         (doto self
           (.initialize
            org-document
-           (-> (merge $org2hiccup-default-options
+           (-> (merge (->> $org2hiccup-default-options
+                           (map (fn [[k v]]
+                                  [[k v]
+                                   [(name k)
+                                    v]]))
+                           (apply concat)
+                           (into {}))
                       (js->clj export-options :keywordize-keys true))
                (clj->js)))
           (aset "result"
@@ -190,11 +197,12 @@
       (.parse org-src)
       (.convert converter-hiccup)))
 
-;; FIXME
-(defn get-org-class-name [org-obj element-type]
-  "")
-(defn get-export-option [org-obj option-name]
-  nil)
+(defn get-export-option [org-object option-name]
+  (let [option-key (if (keyword? option-name)
+                     (name option-name)
+                     option-name)]
+    (some-> (aget org-object "exportOptions")
+            (aget option-name))))
 
 (def
   ;; converter.js:350
@@ -220,11 +228,10 @@
              (apply str))))))
 
 (defn getConverter [node]
-  (this-as self
-    (let [node-type (aget node "type")]
-      (dlog "matched converter" (converterMapping node-type))
-      (or (converterMapping node-type)
-          (converterMapping "default")))))
+  (let [node-type (aget node "type")]
+    (dlog "matched converter" (converterMapping node-type))
+    (or (converterMapping node-type)
+        (converterMapping "default"))))
 
 (defn convertNode [node recordHeader insideCodeElement]
   ;; see converter.js:89
@@ -243,7 +250,8 @@
     ;;   (assign node (OrgNode.createText nil {:value node})))
 
     (let [ ;;child-text (self.getChildText node recordHeader insideCodeElement)
-          aux-data (compute-aux-data-for-node node)]
+          aux-data (compute-aux-data-for-node node)
+          converter (getConverter node)]
       (dinfo
        (str
         "[%c"
@@ -252,8 +260,7 @@
         self)
        "color:white;background:blue;font-weight:bold;"
        "color:black;background:none;")
-      (-> (getConverter node)
-          (.call self node recordHeader insideCodeElement)))
+      (.call converter self node recordHeader insideCodeElement))
     
     ;; (comment
     ;;  (switch node.type
@@ -324,16 +331,12 @@
     ))
 
 (defn convertNodesInternal [nodes recordHeader insideCodeElement]
-  (dlog "%cCONVERTING INTERNAL"
-        "color:white;background:lime;")
+  #_(dlog "%cCONVERTING INTERNAL"
+          "color:white;background:lime;")
   (this-as self
     (let [n-nodes (aget nodes "length")
           ]
-      (dlog
-       "convertnode"
-       n-nodes
-       convertNode
-       )
+      #_(dlog "convertnode" n-nodes convertNode)
       (when (< 0 n-nodes)
         (loop [i 0
                out []]
@@ -342,20 +345,21 @@
             (recur (inc i)
                    (conj
                     out
-                    (-> (aget nodes i)
-                        (convertNode recordHeader insideCodeElement))))))))))
+                    (.call convertNode self
+                           (aget nodes i)
+                           recordHeader insideCodeElement)))))))))
 
 (defn getChildText [node recordHeader insideCodeElement]
   (this-as self
     (let []
       (dwarn "get :getChildText")
       (when (aget node "children")
-        (convertNodesInternal
+        (.call
+         convertNodesInternal
+         self
          (aget node "children")
          recordHeader
-         insideCodeElement))                  
-      )
-    ))
+         insideCodeElement)))))
 
 (def replaceMap
   ;; html.js:314
@@ -412,7 +416,9 @@
       (cond-> (escapeSpecialChars text insideCodeElement)
         (and (not (exportOptions :suppressSubScriptHandling))
              (not insideCodeElement))
-        (makeSubscripts insideCodeElement)
+        (do
+          ;; FIXME BYPASS
+          text)
 
         (not (exportOptions :suppressAutoLink))
         (linkURL)
@@ -431,7 +437,7 @@
    "dashed" (fn [node]
               (this-as self
                 [:del
-                 {:class (get-org-class-name self "dashed")}
+                 {:class (.orgClassName self "dashed")}
                  (.call getChildText self node)]))
 
    "horizontalRule" (fn [node] [:hr])
@@ -440,20 +446,19 @@
             (this-as this
               [:b
                {:class
-                ;; (aget this "orgClassName" "bold")
-                (get-org-class-name this "bold")}
+                (.orgClassName this "bold")}
                (.call getChildText this node)]))
 
    "italic" (fn [node]
               (this-as self
                 [:i
-                 {:class (get-org-class-name self "italic")}
+                 {:class (.orgClassName self "italic")}
                  (.call getChildText self node)]))
 
    "underline" (fn [node]
                  (this-as self
                    [:span
-                    {:class (get-org-class-name self "underline")}
+                    {:class (.orgClassName self "underline")}
                     (.call getChildText self node)]))
    
    "directive" (fn [node]
@@ -527,7 +532,7 @@
                 
                 (if-not maybe-match
                   [:a
-                   {:class (get-org-class-name self "link")
+                   {:class (.orgClassName self "link")
                     :href node-src}
                    (.call getChildText self node)]
                   (let [aux-data (compute-aux-data-for-node node)
@@ -596,16 +601,14 @@
                          ;; definitionItem
                          [:dl
                           [:dt
-                           {:class (get-org-class-name self "description-term")}
+                           {:class (.orgClassName self "description-term")}
                            (.call convertNodesInternal self node.term)]
                           [:dd
-                           {:class (get-org-class-name self "description-description")}
+                           {:class (.orgClassName self "description-description")}
                            child-text]]
 
                          ;; listItem
-                         (if
-                             ;; (aget self "exportOptions" "suppressCheckboxHandling")
-                             (get-export-option self "suppressCheckboxHandling")
+                         (if (get-export-option self "suppressCheckboxHandling")
                            [:li aux-data child-text]
                            (let [listItemAttributes {}
                                  listItemText child-text
@@ -658,7 +661,7 @@
               (let [recordHeader false
                     insideCodeElement false]
                 [:code
-                 {:class (get-org-class-name self "code")}
+                 {:class (.orgClassName self "code")}
                  (.call getChildText self node recordHeader insideCodeElement)])))
 
    "header" (fn [node & optional-args]
@@ -755,12 +758,10 @@
           (clj->js
            {"__proto__" (aget OrgConverter "prototype")
             "orgClassName" (fn [class-name]
-                             (dwarn "get class name")
+                             (dwarn "get class name: " class-name)
                              (this-as self
-                               (str
-                                ;; (aget self "exportOptions" "htmlClassPrefix")
-                                (get-export-option self "htmlClassPrefix")
-                                class-name)))
+                               (str (get-export-option self "htmlClassPrefix")
+                                    class-name)))
 
             "orgId" (fn [id]
                       (dwarn "get :orgId")
