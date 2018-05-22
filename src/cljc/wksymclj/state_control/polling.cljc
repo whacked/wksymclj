@@ -84,7 +84,8 @@
    & {:keys [pre-start
              on-update
              post-stop
-             preserve-history?]
+             preserve-history?
+             state-atom]
       :or {pre-start identity
            on-update identity
            post-stop identity
@@ -121,19 +122,23 @@
 
   (let [uuid (make-uuid)
         ch (chan (dropping-buffer 1))
-        _pstate (atom (PollerState.
-                       uuid             ;; uuid str
-                       ch               ;; async channel
-                       []               ;; seq
-                       polling-interval ;; int
-                       0                ;; int
-                       0                ;; int
-                       nil              ;; fn
-                       false            ;; bool
-                       false            ;; bool
-                       false            ;; bool
-                       nil              ;; t0
-                       ))
+        start-state (PollerState.
+                     uuid             ;; uuid str
+                     ch               ;; async channel
+                     []               ;; seq
+                     polling-interval ;; int
+                     0                ;; int
+                     0                ;; int
+                     nil              ;; fn
+                     false            ;; bool
+                     false            ;; bool
+                     false            ;; bool
+                     nil              ;; t0
+                     )
+        _pstate (if state-atom
+                  (doto state-atom
+                    (reset! start-state))
+                  (atom start-state))
         starter (fn []
                   (when-not (:is-started? @_pstate)
                     (swap! _pstate assoc
