@@ -424,16 +424,20 @@
             
             )))
       
-      (when-let [match-idx (is-subvector? match-value-seq signal-list)]
+      (when-let [match-idx (wk-coll/is-subvector? match-value-seq signal-list)]
         (swap! a--status assoc
                :stream-index (+ (@a--status :stream-index)
                                 match-idx)
                :accepted? true
                :value (if-let [reducer (:reducer (last match-state-seq))]
-                        (reducer world
-                                 ;; if use is-subvector?
-                                 ;; this becomes troublesome
-                                 input-state))))
+                        (let [;; FIXME or REMOVEME -- input-state is undefined
+                              ;; hack here to allow compilation
+                              input-state nil
+                              ]
+                         (reducer world
+                                  ;; if use is-subvector?
+                                  ;; this becomes troublesome
+                                  input-state)))))
       
       )))
 ;; </event management>
