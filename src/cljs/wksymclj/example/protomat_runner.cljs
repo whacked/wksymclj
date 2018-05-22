@@ -82,15 +82,9 @@
            (assoc-in
             [:value :next] :do-some-work)))))
   
-  (defn $_fn-default-1-back-advancer
-    [state input]
-    (assoc-in state
-              [:value :next]
-              (some->> $task-seq
-                       (drop-while (fn [spec-state]
-                                     (not= spec-state input)))
-                       (drop 1)
-                       (first))))
+  (def $_fn-default-1-back-advancer
+    (slpm--make-default-advancer $task-seq))
+  
 
   (def ordered-pattern-seq
     [completion-pattern

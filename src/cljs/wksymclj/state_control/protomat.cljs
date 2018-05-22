@@ -152,6 +152,16 @@
 (defrecord StringLikePatternMatcher
     [matcher signaler reducer completer])
 
+(defn slpm--make-default-advancer [state-seq]
+  (fn [state input]
+    (assoc-in state
+              [:value :next]
+              (some->> state-seq
+                       (drop-while (fn [spec-state]
+                                     (not= spec-state input)))
+                       (drop 1)
+                       (first)))))
+
 (defn slpm--default-reducer [state input]
   (-> state
       (update-in [:history]
