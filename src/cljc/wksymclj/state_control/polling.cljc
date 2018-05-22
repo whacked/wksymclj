@@ -35,16 +35,17 @@
     [time data])
 
 (defrecord PollerState
-    [id           ;; uuid str
-     channel      ;; async channel
-     history      ;; seq
-     interval     ;; int
-     count        ;; int
-     start!       ;; fn
-     should-stop? ;; bool
-     is-started?  ;; bool
-     is-stopped?  ;; bool
-     t0           ;; int (timestamp)
+    [id              ;; uuid str
+     channel         ;; async channel
+     history         ;; seq
+     interval        ;; int
+     request-count   ;; int
+     response-count  ;; int
+     start!          ;; fn
+     should-stop?    ;; bool
+     is-started?     ;; bool
+     is-stopped?     ;; bool
+     t0              ;; int (timestamp)
      ])
 
 (defn make-poller
@@ -97,22 +98,22 @@
     ;; example
     (def my-poller
       (make-poller 1000
-                   (fn [push-state current-state]
+                   (fn [push-state! current-state]
                      (println "(fakely) retrieve data..."
                               (count (:history current-state))
                               "items now")
-                     (push-state {:something (rand-int 100)}))
+                     (push-state! {:something (rand-int 100)}))
                    :pre-start (fn [state]
                                 (println "before start!")
                                 (println state))
                    :on-update (fn [state]
                                 (let [history-size (count (:history state))]
-                                 (println "(REALLY) updating state..."
-                                          history-size
-                                          "items now")
-                                 (when (<= 10 history-size)
-                                   (println "stop condition reached")
-                                   (assoc state :should-stop? true))))
+                                  (println "(REALLY) updating state..."
+                                           history-size
+                                           "items now")
+                                  (when (<= 10 history-size)
+                                    (println "stop condition reached")
+                                    (assoc state :should-stop? true))))
                    :post-stop (fn [state]
                                 (println "after finish!")
                                 (println state))))
@@ -125,6 +126,7 @@
                        ch               ;; async channel
                        []               ;; seq
                        polling-interval ;; int
+                       0                ;; int
                        0                ;; int
                        nil              ;; fn
                        false            ;; bool
@@ -141,7 +143,7 @@
                     (go
                       (loop []
                         (let [num-pollers (count @$poller-pool)
-                              wait-interval (if (= 0 (:count @_pstate))
+                              wait-interval (if (= 0 (:request-count @_pstate))
                                               0
                                               (:interval @_pstate))
                               jitter (if (= 0 num-pollers)
@@ -150,8 +152,9 @@
                                                     num-pollers)))]
                           ;; this is the effective time delay
                           (<! (timeout (+ jitter wait-interval))))
+                        (swap! _pstate update :request-count inc)
                         (polling-callable
-                         (fn push-state [data]
+                         (fn push-state! [data]
                            (swap! _pstate
                                   (fn [cur-state]
                                     (let [tN (now-ms)
@@ -160,7 +163,7 @@
                                                                (PollerEvent. tN data))
                                                          nil)
                                           next-state (-> cur-state
-                                                         (update :count inc)
+                                                         (update :response-count inc)
                                                          (assoc :history next-history))]
                                       ;; continue to the next.
                                       ;; Note that we expect the on-update function to return a full state
