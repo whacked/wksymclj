@@ -2,7 +2,6 @@
   (:require [wksymclj.data-manipulation.collection
              :as wk-coll]))
 
-;; #+pure
 (defn get-edge-midpt [pt-seq]
   (let [npt (count pt-seq)
         midn (quot npt 2)]
@@ -13,7 +12,6 @@
         {:x (/ (+ (:x p1) (:x p2)) 2)
          :y (/ (+ (:y p1) (:y p2)) 2)}))))
 
-;; #+pure
 (defn state-declaration-to-flow-graph
   "
   `state-declaration-list` is a list of 6-entry seqs, like:
@@ -56,7 +54,6 @@
                                           "(" (second pr-state) ")")}])))))
         (apply concat))})
 
-;; #+pure
 (defn get-next-state-list [transition-spec now-state now-world]
   (->> transition-spec
        (map (fn [[name next world]]

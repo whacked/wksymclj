@@ -1,6 +1,5 @@
 (ns wksymclj.data-manipulation.collection)
 
-;; #+pure
 (defn is-subvector?
   "`needle` and `haystack` are seq-able types
   returns index where `needle` is first found in `haystack`
@@ -24,12 +23,10 @@
             i-hs
             (recur (+ i-hs (or match-length 1)))))))))
 
-;; #+pure
 (defn get-proper-subset-keys [base comp]
   (filter (set (keys base))
           (keys comp)))
 
-;; #+pure
 (defn is-submap? [smaller bigger]
   (let [required-keys (get-proper-subset-keys smaller bigger)]
     (and (= (count smaller)
@@ -37,4 +34,3 @@
          (every? identity
                  (map #(= (smaller %) (bigger %))
                       required-keys)))))
-
