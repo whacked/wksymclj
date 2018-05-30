@@ -78,6 +78,10 @@
                                    (grf/get-edge-midpt))
                     edge-midx (:x edge-midpt)
                     edge-midy (:y edge-midpt)
+                    edge-pt2y (-> dagre-edge
+                                  (:points)
+                                  (second)
+                                  (:y))
                     edge-id (+ mx-edge-start-index
                                (count edge-id-mapping))]
                 (recur (rest remain-edge)
@@ -95,7 +99,7 @@
                                            :Array {:_as "points"
                                                    :Object {:_x (-> edge-midx
                                                                     (+ (/ node-width 2)))
-                                                            :_y edge-midy}}}}))))))]
+                                                            :_y edge-pt2y}}}}))))))]
 
     {:mxGraphModel
      {:root
