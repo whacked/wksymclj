@@ -3,7 +3,6 @@
                                      mult tap untap untap-all
                                      pub sub unsub unsub-all]]
             [wksymclj.nodejs-interface.time :refer [now-ms]]
-            [wksymclj.data-manipulation.graph :as grf]
             [wksymclj.data-manipulation.collection :as wk-coll])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
