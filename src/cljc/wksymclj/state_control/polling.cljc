@@ -27,7 +27,7 @@
            (.getTime)))
 
      (defn make-uuid []
-       (cljs.core/random-uuid))))
+       (str (cljs.core/random-uuid)))))
 
 (def $poller-pool (atom {}))
 
