@@ -139,6 +139,12 @@
                   (doto state-atom
                     (reset! start-state))
                   (atom start-state))
+        stop! (fn []
+                (when-not (:is-stopped? @_pstate)
+                  (close! ch)
+                  (swap! _pstate assoc :is-stopped? true)
+                  (swap! $poller-pool dissoc (:id @_pstate))
+                  (post-stop @_pstate)))
         starter (fn []
                   (when-not (:is-started? @_pstate)
                     (swap! _pstate assoc
@@ -147,46 +153,49 @@
                     (pre-start @_pstate)
                     (go
                       (loop []
-                        (let [num-pollers (count @$poller-pool)
-                              wait-interval (if (= 0 (:request-count @_pstate))
+                        (<! (timeout
+                             (if (:should-stop? @_pstate)
+                               0
+                               ;; this is the effective time delay
+                               (let [num-pollers (count @$poller-pool)
+                                     wait-interval (if (= 0 (:request-count @_pstate))
+                                                     0
+                                                     (:interval @_pstate))
+                                     jitter (if (= 0 num-pollers)
                                               0
-                                              (:interval @_pstate))
-                              jitter (if (= 0 num-pollers)
-                                       0
-                                       (rand-int (/ wait-interval
-                                                    num-pollers)))]
-                          ;; this is the effective time delay
-                          (<! (timeout (+ jitter wait-interval))))
-                        (swap! _pstate update :request-count inc)
-                        (polling-callable
-                         (fn push-state! [data]
-                           (swap! _pstate
-                                  (fn [cur-state]
-                                    (let [tN (now-ms)
-                                          next-history (if preserve-history?
-                                                         (conj (:history cur-state)
-                                                               (PollerEvent. tN data))
-                                                         nil)
-                                          next-state (-> cur-state
-                                                         (update :response-count inc)
-                                                         (assoc :history next-history))]
-                                      ;; continue to the next.
-                                      ;; Note that we expect the on-update function to return a full state
-                                      ;; representation.  the `or` here is really a bad stopgap, which will
-                                      ;; happen if `on-update` happens to be a side-effect-only function,
-                                      ;; e.g. just some dom update, and the user does not remember to
-                                      ;; pass-through the state value
-                                      (or (on-update next-state)
-                                          next-state))))
-                           (go (>! ch data)))
-                         @_pstate)
+                                              (rand-int (/ wait-interval
+                                                           num-pollers)))]
+                                 (+ jitter wait-interval)))))
+                        (when-not (:should-stop? @_pstate)
+                          (swap! _pstate update :request-count inc)
+                          (polling-callable
+                           (fn push-state! [data]
+                             (let [updated-state
+                                   (swap! _pstate
+                                          (fn [cur-state]
+                                            (let [tN (now-ms)
+                                                  next-history (if preserve-history?
+                                                                 (conj (:history cur-state)
+                                                                       (PollerEvent. tN data))
+                                                                 nil)
+                                                  next-state (-> cur-state
+                                                                 (update :response-count inc)
+                                                                 (assoc :history next-history))]
+                                              ;; continue to the next.
+                                              ;; Note that we expect the on-update function to return a full state
+                                              ;; representation.  the `or` here is really a bad stopgap, which will
+                                              ;; happen if `on-update` happens to be a side-effect-only function,
+                                              ;; e.g. just some dom update, and the user does not remember to
+                                              ;; pass-through the state value
+                                              (or (on-update next-state)
+                                                  next-state))))]
+                               (go (>! ch data))
+                               (when (:should-stop? updated-state)
+                                 (stop!))))
+                           @_pstate))
                         (if-not (:should-stop? @_pstate)
                           (recur)
-                          (do
-                            (close! ch)
-                            (swap! _pstate assoc :is-stopped? true)
-                            (swap! $poller-pool dissoc (:id @_pstate))
-                            (post-stop @_pstate)))))))]
+                          (stop!))))))]
     (swap! $poller-pool assoc uuid _pstate)
     (swap! _pstate assoc :start! starter)
     _pstate))
