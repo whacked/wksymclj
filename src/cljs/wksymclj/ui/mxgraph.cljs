@@ -34,18 +34,10 @@
         xml-doc (.parseXml mxUtils xml-source)
         decoder (new mxCodec xml-doc)
         node (aget xml-doc "documentElement")
-        graph (new mxGraph mx-container)
-
-        _mx-get-xml (partial js-invoke mxUtils "getXml")]
+        graph (new mxGraph mx-container)]
     ;; this call does the actual rendering to DOM
     (.decode decoder node (.getModel graph))
-
-    ;; make it return the clojure-converted graph datastructure
-    (-> (new mxCodec)
-        (js-invoke "encode" (.getModel graph))
-        (_mx-get-xml)
-        (xml->js)
-        (js->clj :keywordize-keys true))))
+    graph))
 
 (defn render-mxgraph-file-to-element!
   [xml-filepath target-el]
@@ -58,3 +50,31 @@
       (clj->js)
       (js->xml)
       (render-mxgraph-xml-to-element! target-el)))
+
+(defn get-model-from-mxgraph
+  [mx-graph]
+  (-> (new mxCodec)
+      (js-invoke "encode" (.getModel mx-graph))))
+
+(defn get-xml-from-mxgraph-model
+  "this function takes an object that's like <mxGraphModel>...</mxGraphModel>"
+  [mx-graph-model]
+  (js-invoke mxUtils "getXml" mx-graph-model))
+
+(defn get-xml-from-mxgraph
+  [mx-graph]
+  (-> mx-graph
+      (get-model-from-mxgraph)
+      (get-xml-from-mxgraph-model)))
+
+(defn get-js-from-mxgraph
+  [mx-graph]
+  (-> mx-graph
+      (get-xml-from-mxgraph)
+      (xml->js)))
+
+(defn get-clj-from-mxgraph
+  [mx-graph-model]
+  (-> mx-graph-model
+      (get-js-from-mxgraph)
+      (js->clj :keywordize-keys true)))
