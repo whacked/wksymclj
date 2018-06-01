@@ -5,7 +5,7 @@
             [wksymclj.ui.dagre :as dagre]
             [wksymclj.ui.mxgraph :as mx]))
 
-(defn _underscoreify-keys [m]
+(defn underscoreify-keys [m]
   (->> m
        (map (fn [[k v]]
               [(->> (name k)
@@ -118,11 +118,11 @@
                                            :mxPoint
                                            [(-> dagre-points
                                                 (first)
-                                                (_underscoreify-keys)
+                                                (underscoreify-keys)
                                                 (assoc :_as "sourcePoint"))
                                             (-> dagre-points
                                                 (last)
-                                                (_underscoreify-keys)
+                                                (underscoreify-keys)
                                                 (assoc :_as "targetPoint"))]}}))))))]
 
     {:mxGraphModel
