@@ -14,6 +14,56 @@
                v]))
        (into {})))
 
+(comment
+  ;; alternative method of building mx-cell-seq.
+  ;; if you use this, make sure you update the
+  ;; mxGeometry section to use the new :_as src/tgt
+  ;; marker
+  (loop [node-remain (dagre/get-dagre-node-seq flow-dagre)
+         edge-remain (dagre/get-dagre-edge-seq flow-dagre)
+         mx-out [{:_id 0}
+                 {:_id 1 :_parent 0}]
+         id-mapper (->> mx-out
+                        (map (fn [m] [(:_id m) (:_id m)]))
+                        (into {}))]
+    
+    (cond (and (empty? node-remain)
+               (empty? edge-remain))
+          mx-out
+
+          (seq node-remain)
+          (let [dagre-node (first node-remain)
+                node-name (:name dagre-node)
+                node-id (id-mapper node-name (count id-mapper))
+                mx-node {:_id node-id
+                         :_parent 1 :_vertex 1
+                         :_value (:label dagre-node) ;; or :name ?
+                         :mxGeometry (-> (dagre->mx-geometry dagre-node)
+                                         (conj [:_as "geometry"]))}]
+            (recur (rest node-remain)
+                   edge-remain
+                   (conj mx-out mx-node)
+                   (conj id-mapper
+                         [node-name node-id])))
+
+          (seq edge-remain)
+          (let [dagre-edge (first edge-remain)
+                pre-name (dagre-edge :v)
+                post-name (dagre-edge :w)
+                edge-id (count id-mapper)
+                mx-edge {:_id edge-id
+                         :_parent 1 :_edge 1
+                         :_value (:label dagre-edge) ;; or :name ?
+                         :_source (id-mapper pre-name)
+                         :_target (id-mapper post-name)
+                         :mxGeometry {;; fix this
+                                      }}]
+            (recur node-remain
+                   (rest edge-remain)
+                   (conj mx-out mx-edge)
+                   (conj id-mapper
+                         [[pre-name post-name] edge-id]))))))
+
 (defn dagre-graph-to-mxgraph-data [dagre-graph]
   (let [dagre-nodes (-> dagre-graph
                         (wksymclj.ui.dagre/get-dagre-node-seq))
