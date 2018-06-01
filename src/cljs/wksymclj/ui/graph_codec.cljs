@@ -5,6 +5,15 @@
             [wksymclj.ui.dagre :as dagre]
             [wksymclj.ui.mxgraph :as mx]))
 
+(defn _underscoreify-keys [m]
+  (->> m
+       (map (fn [[k v]]
+              [(->> (name k)
+                    (str "_")
+                    (keyword))
+               v]))
+       (into {})))
+
 (defn dagre-graph-to-mxgraph-data [dagre-graph]
   (let [dagre-nodes (-> dagre-graph
                         (wksymclj.ui.dagre/get-dagre-node-seq))
@@ -66,20 +75,26 @@
               ;; {:_id 7 :_parent 1 :_edge 1
               ;;  :_value "Transfer1"
               ;;  :_source 2 :_target 3
-              ;;  :mxGeometry {:_as "geometry"
-              ;;               :Array {:_as "points"
-              ;;                       :Object {:_x 420 :_y 60}}}}
+              ;;  :mxGeometry {:mxPoint
+              ;;               [{:_x 370 :_y 660
+              ;;                 :_as "sourcePoint"}
+              ;;                {:_x 420 :_y 610
+              ;;                 :_as "targetPoint"}]
+              ;;               :Array {:mxPoint {:_x 490 :_y 410}
+              ;;                       :_as "points"}
+              ;;               :_relative 1
+              ;;               :_as "geometry"}}
               (let [pre (:v dagre-edge)
                     post (:w dagre-edge)
                     dagre-node (_node-mapping post)
                     node-width (:width dagre-node)
-                    edge-midpt (-> dagre-edge
-                                   (:points)
+
+                    dagre-points (:points dagre-edge)
+                    edge-midpt (-> dagre-points
                                    (grf/get-edge-midpt))
                     edge-midx (:x edge-midpt)
-                    edge-midy (:y edge-midpt)
-                    edge-pt2y (-> dagre-edge
-                                  (:points)
+                    edge-midy (:y edge-midpt) ;; alternative to pt2y
+                    edge-pt2y (-> dagre-points
                                   (second)
                                   (:y))
                     edge-id (+ mx-edge-start-index
@@ -97,9 +112,18 @@
                               :mxGeometry {:_as "geometry"
                                            :_relative 1
                                            :Array {:_as "points"
-                                                   :Object {:_x (-> edge-midx
-                                                                    (+ (/ node-width 2)))
-                                                            :_y edge-pt2y}}}}))))))]
+                                                   :mxPoint {:_x (-> edge-midx
+                                                                     (+ (/ node-width 2)))
+                                                             :_y edge-pt2y}}
+                                           :mxPoint
+                                           [(-> dagre-points
+                                                (first)
+                                                (_underscoreify-keys)
+                                                (assoc :_as "sourcePoint"))
+                                            (-> dagre-points
+                                                (last)
+                                                (_underscoreify-keys)
+                                                (assoc :_as "targetPoint"))]}}))))))]
 
     {:mxGraphModel
      {:root
