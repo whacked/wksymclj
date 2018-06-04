@@ -93,6 +93,7 @@
 (spec/def ::_relative mx-truth-flag)
 (spec/def ::_connectable mx-truth-flag)
 (spec/def ::html mx-truth-flag)
+(spec/def ::dashed mx-truth-flag)
 (spec/def ::rounded mx-truth-flag)
 (spec/def ::resizable mx-truth-flag)
 (def mx-boolean-keys
@@ -103,6 +104,7 @@
     :_relative
     :_connectable
     :html
+    :dashed
     :rounded
     :resizable]
    (fn [s]
@@ -153,7 +155,7 @@
             (spec/valid? ::mxNode out))]}
   (let [converted (-> (apply dissoc orig-map mx-numeric-keys)
                       (dissoc :style)
-                      (select-keys grf/node-base-keys)
+                      (select-keys grf/base-node-keys)
                       (underscoreify-keys))]
     (-> (if-let [style-data (:style orig-map)]
           (assoc converted
