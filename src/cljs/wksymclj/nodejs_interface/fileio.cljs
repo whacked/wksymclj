@@ -1,5 +1,6 @@
 (ns wksymclj.nodejs-interface.fileio
-  (:require [cljs.nodejs :as nodejs]))
+  (:require [cljs.nodejs :as nodejs]
+            [clojure.string]))
 
 (def fs (nodejs/require "fs"))
 (def path (nodejs/require "path"))

@@ -1,6 +1,6 @@
 (ns wksymclj.codec.org-mode
   (:require [cljs.nodejs :as nodejs]
-            ))
+            [clojure.string]))
 
 (def $print-debug-to-console? true)
 (if $print-debug-to-console?
