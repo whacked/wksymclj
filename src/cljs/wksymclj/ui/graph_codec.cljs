@@ -3,16 +3,8 @@
             [wksymclj.data-manipulation.graph :as grf]
             [wksymclj.example.dagre-state-view]
             [wksymclj.ui.dagre :as dagre]
-            [wksymclj.ui.mxgraph :as mx]))
-
-(defn underscoreify-keys [m]
-  (->> m
-       (map (fn [[k v]]
-              [(->> (name k)
-                    (str "_")
-                    (keyword))
-               v]))
-       (into {})))
+            [wksymclj.ui.mxgraph :as mx
+             :refer [underscoreify-keys]]))
 
 (comment
   ;; alternative method of building mx-cell-seq.

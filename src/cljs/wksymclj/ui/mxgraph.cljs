@@ -13,13 +13,205 @@
             [wksymclj.nodejs-interface.fileio
              :refer [path-join]]
             [wksymclj.data-manipulation.xml
-             :refer [xml->js js->xml]]))
+             :refer [xml->js js->xml]]
+            [clojure.string]
+            [cljs.spec.alpha :as spec]
+            [com.rpl.specter :as spct])
+  (:require-macros
+   [swiss.arrows :refer [-<> -<>>]]
+   [com.rpl.specter
+    :refer [select transform]]))
+
+(def $this-namespace "wksymclj.ui.mxgraph")
 
 ;; mx dependencies
 (def mxGraph js/mxGraph)
 (def mxRubberband js/mxRubberband)
 (def mxUtils js/mxUtils)
 (def mxCodec js/mxCodec)
+(def mxConstants js/mxConstants)
+
+(defn string-to-number [s]
+  (js/parseFloat s))
+
+(def number-like? (or
+                   number?
+                   #(let [n (string-to-number %)]
+                      (= n n))))
+
+(defrecord SpecCodec
+    [spec in out])
+(defn key-to-codec-mapper
+  ([ks]
+   (key-to-codec-mapper ks identity identity))
+  ([ks in]
+   (key-to-codec-mapper ks identity))
+  ([ks in out]
+   (->> ks
+        (map (fn [k]
+               [k
+                (SpecCodec.
+                 (spec/get-spec (keyword $this-namespace k))
+                 in
+                 out)]))
+        (into {}))))
+
+(spec/def ::_x number-like?)
+(spec/def ::_y number-like?)
+(spec/def ::_width number-like?)
+(spec/def ::_height number-like?)
+(def mx-numeric-keys
+  (key-to-codec-mapper
+   [:_x :_y :_width :_height]
+   string-to-number
+   str))
+
+(spec/def ::_style string?)
+(spec/def ::_value string?)
+(def mx-string-keys
+  (key-to-codec-mapper
+   [:_style :_value]))
+
+(spec/def ::_as #{"points" "geometry"
+                  "sourcePoint" "targetPoint"})
+(spec/def ::align
+  #{(aget mxConstants "ALIGN_LEFT")
+    (aget mxConstants "ALIGN_CENTER")
+    (aget mxConstants "ALIGN_RIGHT")})
+(spec/def ::verticalAlign
+  #{(aget mxConstants "ALIGN_TOP")
+    (aget mxConstants "ALIGN_MIDDLE")
+    (aget mxConstants "ALIGN_BOTTOM")})
+(def mx-set-keys
+  (key-to-codec-mapper
+   [:_as :align :verticalAlign]))
+
+(def mx-truth-flag #{0 1 "0" "1"})
+(spec/def ::_parent mx-truth-flag)
+(spec/def ::_edge mx-truth-flag)
+(spec/def ::_vertex mx-truth-flag)
+(spec/def ::_relative mx-truth-flag)
+(spec/def ::_connectable mx-truth-flag)
+(spec/def ::html mx-truth-flag)
+(spec/def ::rounded mx-truth-flag)
+(spec/def ::resizable mx-truth-flag)
+(def mx-boolean-keys
+  (key-to-codec-mapper
+   [:_parent
+    :_edge
+    :_vertex
+    :_relative
+    :_connectable
+    :html
+    :rounded
+    :resizable]
+   (fn [s]
+     (case s
+       (1 "1") true
+       (0 "0") false))
+   (fn [b]
+     (case b
+       true "1"
+       false "0"))))
+
+(def mx-speccodec-map
+  (merge
+   mx-numeric-keys
+   mx-string-keys
+   mx-set-keys
+   mx-boolean-keys))
+
+;; (->> (spec/registry)
+;;      (filter (fn [[kw _]]
+;;                (= $this-namespace (namespace kw))))
+;;      (map (fn [[kw validator]]
+;;             [kw validator])))
+
+(spec/def ::mxNode
+  (spec/keys :opt-un [::_x ::_y ::_width ::_height]))
+
+(defn underscoreify-keys [m]
+  (->> m
+       (map (fn [[k v]]
+              [(->> (name k)
+                    (str "_")
+                    (keyword))
+               v]))
+       (into {})))
+
+(defn to-style-string [style-map]
+  (->> style-map
+       (map (fn [[attr val]]
+              (cond-> attr
+                (keyword? attr) name
+                true (str ":" val ";"))))
+       (clojure.string/join "")))
+
+(defn graph-viz-node-to-mx-node [orig-map]
+  {:pre [(spec/valid? ::grf/VizNode orig-map)]
+   :post [(fn [out]
+            (spec/valid? ::mxNode out))]}
+  (let [converted (-> (apply dissoc orig-map mx-numeric-keys)
+                      (dissoc :style)
+                      (select-keys grf/node-base-keys)
+                      (underscoreify-keys))]
+    (-> (if-let [style-data (:style orig-map)]
+          (assoc converted
+                 :style
+                 (cond-> style-data
+                   (map? style-data) 
+                   to-style-string))
+          converted)
+        (merge (->> (select-keys orig-map mx-numeric-keys)
+                    (map (fn [[k v]]
+                           [k (string-to-number v)]))
+                    (into orig-map))))))
+
+(defn mx-style->clj [mx-style-string]
+  (->> (clojure.string/split
+        mx-style-string
+        #";")
+       (map #(clojure.string/split % #"="))
+       (map (fn [spl]
+              (if (= 1 (count spl))
+                [:_ (first spl)]
+                (let [[k v] spl
+                      kw (keyword k)
+                      speccodec (mx-speccodec-map kw)]
+                  [kw
+                   ((if-let [reader (:in speccodec)]
+                      reader
+                      identity)
+                    v)]))))
+       (into {})))
+  
+(defn clj->mx-style [clj-style]
+  (let [head (if-let [head (:_ clj-style)]
+               (str head ";")
+               nil)
+        style-pair-map (dissoc clj-style :_)]
+    (->> style-pair-map
+         (map (fn [[k v]]
+                (let [speccodec (mx-speccodec-map k)]
+                  (str (name k) "="
+                       ((if-let [writer (:out speccodec)]
+                          writer
+                          identity)
+                        v)
+                       ";"))))
+         (apply str head))))
+
+(defn get-cell-style-map [cell]
+  (some-> (:_style cell)
+          (mx-style->clj)))
+
+(defn set-cell-style-map [cell style-map]
+  (if-not style-map
+    cell
+    (let [style-string (clj->mx-style style-map)]
+      (if (empty? style-string)
+        cell
+        (assoc cell :_style style-string)))))
 
 (defn render-mxgraph-xml-to-element!
   ;; see mxgraph/javascript/examples/codec.html
@@ -78,3 +270,25 @@
   (-> mx-graph-model
       (get-js-from-mxgraph)
       (js->clj :keywordize-keys true)))
+
+;; (defn transform-cells [mx-graph cell-transformer]
+;;   (transform
+;;    [spct/MAP-VALS
+;;     spct/MAP-VALS
+;;     spct/MAP-VALS
+;;     spct/ALL
+;;     ;; you can drill into `_vertex` only
+;;     ;; or e.g.            `_edge`   only
+;;     ;; #(:_vertex %)
+;;     ]
+;;    cell-transformer
+;;    mx-graph))
+
+(defn transform-cells-in-mxgraph [mx-graph cell-transformer]
+  (transform
+   [:mxGraphModel
+    :root
+    :mxCell
+    spct/ALL]
+   cell-transformer
+   mx-graph))

@@ -1,6 +1,26 @@
 (ns wksymclj.data-manipulation.graph
   (:require [wksymclj.data-manipulation.collection
-             :as wk-coll]))
+             :as wk-coll]
+            [cljs.spec.alpha :as spec]))
+
+(spec/def ::x number?)
+(spec/def ::y number?)
+(spec/def ::width number?)
+(spec/def ::height number?)
+
+(spec/def ::VizNode
+  (spec/keys :opt-un [::x ::y ::width ::height]))
+
+(def base-node-keys
+  (->> (spec/describe ::VizNode)
+       (drop-while (fn [item]
+                     (not= item 'keys)))
+       (rest)
+       (filter sequential?)
+       (apply concat)))
+
+;; placeholder: no clear generalization path now
+;; (spec/def ::GraphVizEdge)
 
 (defn get-edge-midpt [pt-seq]
   (let [npt (count pt-seq)
