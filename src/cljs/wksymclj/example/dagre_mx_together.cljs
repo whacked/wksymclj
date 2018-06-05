@@ -138,6 +138,41 @@
    (gdom/getElement "panel-A")))
 
 (comment
+  (def node-attribute-db
+    {"need-library"
+     {:shape :Terminator
+      :section "browser"
+      :color "pink"}
+     "think-keywords"
+     {:shape :Process
+      :section "browser"
+      :color "orange"}
+     "search-engine"
+     {:shape :Decision
+      :section "browser"
+      :color "yellow"}
+     "found-match"
+     {:shape :Data
+      :section "browser"
+      :color "lime"}
+     "no-match"
+     {:shape :Step
+      :section "browser"
+      :color "skyblue"
+      :x 250
+      :y 320}
+     "download-library"
+     {:shape :Process
+      :section "terminal"
+      :color "salmon"}
+     "try-out"
+     {:shape :Terminator
+      :section "terminal"
+      :color "violet"}})
+
+  (defn get-node-attribute-map [node-name]
+    (get node-attribute-db node-name))
+  
   ;; draw swimlanes
   (let [lane-mapping {"browser" {:x 40
                                  :color "purple"}
@@ -145,57 +180,35 @@
                                   :color "brown"}}
         _node-width 120
         _node-height 80]
+    
     (def my-flow-graph
       (let [w _node-width
             h _node-height
-            _node (fn [_label _name _shape _section _color]
-                    {:label _label
-                     :name _name
-                     :width w
-                     :height (if (= _shape :Process)
-                               w
-                               h)
-                     :shape _shape
-                     :section _section
-                     :color _color})
-            
-            ]
+            _node (fn [_name _label]
+                    (let [node-attr (get-node-attribute-map _name)]
+                      (merge
+                       {:name _name
+                        :label _label
+                        :width w
+                        :height (if (= (:shape node-attr) :Process)
+                                  w h)}
+                       (dissoc node-attr
+                               :x :y))))]
         {:node-list
-         [(_node  "Need a graph drawing library"
-                  "need-library"
-                  :Terminator
-                  "browser"
-                  "pink")
-          (_node  "think some keywords"
-                  "think-keywords"
-                  :Process
-                  "browser"
-                  "orange")
-          (_node "Search on search engine"
-                 "search-engine"
-                 :Decision
-                 "browser"
-                 "yellow")
-          (_node  "nice loooking match"
-                  "found-match"
-                  :Data
-                  "browser"
-                  "lime")
-          (_node  "nothing promising"
-                  "no-match"
-                  :Step
-                  "browser"
-                  "skyblue")
-          (_node  "download library"
-                  "download-library"
-                  :Process
-                  "terminal"
-                  "salmon")
-          (_node  "try it out"
-                  "try-out"
-                  :Terminator
-                  "terminal"
-                  "violet")]
+         [(_node "need-library"
+                 "Need a graph drawing library")
+          (_node "think-keywords"
+                 "think some keywords")
+          (_node "search-engine"
+                 "Search on search engine")
+          (_node "found-match"
+                 "nice loooking match")
+          (_node  "no-match"
+                  "nothing promising")
+          (_node "download-library"
+                 "download library")
+          (_node "try-out"
+                 "try it out")]
          :edge-list
          [["need-library"
            "think-keywords"
@@ -248,11 +261,14 @@
 
         (-> mxgraph-data
             
+            ;; postprocess
             (mx/transform-cells-in-mxgraph
              (fn [cell]
                (->> cell
                     ((fn [cell]
-                       (let [node-spec (_mx-mapping (:_id cell))]
+                       (let [node-spec (_mx-mapping (:_id cell))
+                             node-name (:name node-spec)
+                             node-attr (get-node-attribute-map node-name)]
                          (cond node-spec
                                (let [section (:section node-spec)
                                      section-x (get-in lane-mapping [section :x]
@@ -297,7 +313,12 @@
                                                     (-> cur-x
                                                         (+ section-x)
                                                         (/ 2)
-                                                        (+ (/ section-x 2)))))))
+                                                        (+ (/ section-x 2)))))
+                                       (update-in <> [:mxGeometry]
+                                                  (fn [mxg]
+                                                    (merge mxg
+                                                           (-> (select-keys node-attr [:x :y])
+                                                               (underscoreify-keys)))))))
 
                                (cell :_edge)
                                (update-in cell [:mxGeometry]
