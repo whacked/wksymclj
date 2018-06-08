@@ -22,6 +22,8 @@
    [com.rpl.specter
     :refer [select transform]]))
 
+(def $DEBUG-LEVEL 0)
+
 (def $this-namespace "wksymclj.ui.mxgraph")
 
 ;; mx dependencies
@@ -31,19 +33,43 @@
 (def mxCodec js/mxCodec)
 (def mxConstants js/mxConstants)
 (def mxGraphView js/mxGraphView)
+(def mxStencil js/mxStencil)
+(def mxStencilRegistry js/mxStencilRegistry)
+
+(defn mx-load-xml-document [fpath]
+  (-<> (fio/simple-slurp fpath)
+       (.parseXml mxUtils <>)
+       (aget "documentElement")))
 
 ;; the stylesheet is what enables rich shapes (ellipse, rhombus, etc)
 (def default-stylesheet
-  (-<> (fio/simple-slurp "resources/public/mxgraph/stylesheet.xml")
-       (.parseXml mxUtils <>)
-       (aget "documentElement")))
+  (mx-load-xml-document "resources/public/mxgraph/stylesheet.xml"))
+
+;; stencils enable specialized geometry
+(doseq [stencil-filepath ["resources/public/mxgraph/flowchart_stencil.xml"]]
+  (let [root flowchart-stencil
+        mx-package-name (-> root
+                            (.getAttribute "name")
+                            (clojure.string/lower-case))]
+    (doseq [shape-node (-> (aget flowchart-stencil "children")
+                           (array-seq))]
+      (let [stencil-registry-name
+            (->> (.getAttribute shape-node "name")
+                 (clojure.string/lower-case)
+                 (str mx-package-name "."))]
+        (when (< 0 $DEBUG-LEVEL)
+          (js/console.log "adding stencil: "
+                          stencil-registry-name
+                          shape-node))
+        (.addStencil mxStencilRegistry
+                     stencil-registry-name
+                     (new mxStencil shape-node))))))
 
 ;; intention is to change appearance here. need to verify whether it does
 (doto (aget mxGraphView "prototype")
   (aset "gridSteps" 4)
   (aset "minGridSize" 4)
   (aset "minGridSize" "#E0E0E0"))
-
 
 (defn string-to-number [s]
   (js/parseFloat s))

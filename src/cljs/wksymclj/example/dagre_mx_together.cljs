@@ -298,7 +298,7 @@
 
                                                  :Terminator {:shape "mxgraph.flowchart.terminator"}
                                                  
-                                                 :Data {:shape "mxgraph.flowchart.document2"}
+                                                 :Data {:shape "mxgraph.flowchart.document"}
                                                  
                                                  :Step {:rounded true}
 
