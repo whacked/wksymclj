@@ -244,6 +244,7 @@
         node (aget xml-doc "documentElement")
         graph (new mxGraph mx-container)]
     (doto graph
+      (.setHtmlLabels true)
       (.setStylesheet
        (-> (new mxCodec)
            (.decode default-stylesheet))))

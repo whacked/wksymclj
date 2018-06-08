@@ -196,13 +196,13 @@
                                :x :y))))]
         {:node-list
          [(_node "need-library"
-                 "Need a graph drawing library")
+                 "Need a <b>graph drawing library</b>")
           (_node "think-keywords"
-                 "think some keywords")
+                 "<i>think</i> some keywords")
           (_node "search-engine"
-                 "Search on search engine")
+                 "Search on <u>search engine</u>")
           (_node "found-match"
-                 "nice loooking match")
+                 "<h3>nice loooking match</h3>")
           (_node  "no-match"
                   "nothing promising")
           (_node "download-library"
