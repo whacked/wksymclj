@@ -30,6 +30,20 @@
 (def mxUtils js/mxUtils)
 (def mxCodec js/mxCodec)
 (def mxConstants js/mxConstants)
+(def mxGraphView js/mxGraphView)
+
+;; the stylesheet is what enables rich shapes (ellipse, rhombus, etc)
+(def default-stylesheet
+  (-<> (fio/simple-slurp "resources/public/mxgraph/stylesheet.xml")
+       (.parseXml mxUtils <>)
+       (aget "documentElement")))
+
+;; intention is to change appearance here. need to verify whether it does
+(doto (aget mxGraphView "prototype")
+  (aset "gridSteps" 4)
+  (aset "minGridSize" 4)
+  (aset "minGridSize" "#E0E0E0"))
+
 
 (defn string-to-number [s]
   (js/parseFloat s))
@@ -229,6 +243,10 @@
         decoder (new mxCodec xml-doc)
         node (aget xml-doc "documentElement")
         graph (new mxGraph mx-container)]
+    (doto graph
+      (.setStylesheet
+       (-> (new mxCodec)
+           (.decode default-stylesheet))))
     ;; this call does the actual rendering to DOM
     (.decode decoder node (.getModel graph))
     graph))
@@ -253,7 +271,7 @@
 (defn get-xml-from-mxgraph-model
   "this function takes an object that's like <mxGraphModel>...</mxGraphModel>"
   [mx-graph-model]
-  (js-invoke mxUtils "getXml" mx-graph-model))
+  (js-invoke mxUtils "getPrettyXml" mx-graph-model))
 
 (defn get-xml-from-mxgraph
   [mx-graph]
