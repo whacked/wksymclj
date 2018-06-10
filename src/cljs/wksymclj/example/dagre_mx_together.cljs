@@ -210,26 +210,17 @@
           (_node "try-out"
                  "try it out")]
          :edge-list
-         [["need-library"
-           "think-keywords"]
-          ["think-keywords"
-           "search-engine"
-           {:label ""}]
+         [["need-library" "think-keywords"]
+          ["think-keywords" "search-engine"]
           ["search-engine"
            "found-match"
            {:label "YES"}]
           ["search-engine"
            "no-match"
            {:label "NO"}]
-          ["no-match"
-           "think-keywords"
-           {:label ""}]
-          ["found-match"
-           "download-library"
-           {:label ""}]
-          ["download-library"
-           "try-out"
-           {:label ""}]]}))
+          ["no-match" "think-keywords"]
+          ["found-match" "download-library"]
+          ["download-library" "try-out"]]}))
     
     (def my-mxgraph
       (let [$target-el (gdom/getElement "panel-A")

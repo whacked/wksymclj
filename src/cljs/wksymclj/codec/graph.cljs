@@ -145,32 +145,34 @@
                        (assoc edge-id-mapping
                               [pre post] edge-id)
                        (conj out
-                             {:_edge 1
-                              :_parent 1
-                              :_id edge-id
-                              :_source (_node-id-mapping pre)
-                              :_target (_node-id-mapping post)
-                              :_value (:label dagre-edge)
-                              :mxGeometry (merge
-                                           ;; WARNING: this assumes that dagre points
-                                           ;; <= 2 mean we don't need waypoints. this
-                                           ;; is not a tested assumption.
-                                           (if (< 2 (count dagre-points))
-                                             {:Array {:_as "points"
-                                                      :mxPoint {:_x (-> edge-midx
-                                                                        (+ (/ node-width 2)))
-                                                                :_y edge-pt2y}}})
-                                           {:_as "geometry"
-                                            :_relative 1
-                                            :mxPoint
-                                            [(-> dagre-points
-                                                 (first)
-                                                 (underscoreify-keys)
-                                                 (assoc :_as "sourcePoint"))
-                                             (-> dagre-points
-                                                 (last)
-                                                 (underscoreify-keys)
-                                                 (assoc :_as "targetPoint"))]})}))))))]
+                             (merge
+                              (if-let [label (:label dagre-edge)]
+                                {:_value label})
+                              {:_edge 1
+                               :_parent 1
+                               :_id edge-id
+                               :_source (_node-id-mapping pre)
+                               :_target (_node-id-mapping post)
+                               :mxGeometry (merge
+                                            ;; WARNING: this assumes that dagre points
+                                            ;; <= 2 mean we don't need waypoints. this
+                                            ;; is not a tested assumption.
+                                            (if (< 2 (count dagre-points))
+                                              {:Array {:_as "points"
+                                                       :mxPoint {:_x (-> edge-midx
+                                                                         (+ (/ node-width 2)))
+                                                                 :_y edge-pt2y}}})
+                                            {:_as "geometry"
+                                             :_relative 1
+                                             :mxPoint
+                                             [(-> dagre-points
+                                                  (first)
+                                                  (underscoreify-keys)
+                                                  (assoc :_as "sourcePoint"))
+                                              (-> dagre-points
+                                                  (last)
+                                                  (underscoreify-keys)
+                                                  (assoc :_as "targetPoint"))]})})))))))]
 
     {:mxGraphModel
      {:root

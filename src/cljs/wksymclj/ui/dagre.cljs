@@ -58,8 +58,10 @@
       
       ;; process edges
       (doseq [[pr-name po-name edge-data] edge-list]
-        (.setEdge graph pr-name po-name
-                  (clj->js edge-data)))
+        (if edge-data
+          (.setEdge graph pr-name po-name
+                    (clj->js edge-data))
+          (.setEdge graph pr-name po-name)))
       (dagre-layout graph))
     graph))
 

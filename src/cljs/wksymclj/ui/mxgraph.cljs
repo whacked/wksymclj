@@ -3,15 +3,10 @@
             [cljs.nodejs :as nodejs]
 
             [wksymclj.nodejs-interface.fileio :as fio]
-            [wksymclj.data-manipulation.graph
-             :as grf
-             :refer [get-edge-midpt
-                     state-declaration-to-flow-graph]]
+            [wksymclj.data-manipulation.graph :as grf]
             [wksymclj.ui.browser-interop
              :refer [clear-dom-element!]]
             [wksymclj.ui.dagre :as dagre]
-            [wksymclj.nodejs-interface.fileio
-             :refer [path-join]]
             [wksymclj.data-manipulation.xml
              :refer [xml->js js->xml]]
             [clojure.string]
@@ -132,6 +127,9 @@
   (key-to-codec-mapper
    [:_as :align :verticalAlign]))
 
+;; TODO: add spec precondition for known flags;
+;; without this, a type mismatch for e.g. :dashed
+;; will throw "no matching clause" on conversion
 (def mx-truth-flag #{0 1 "0" "1"})
 (spec/def ::_parent mx-truth-flag)
 (spec/def ::_edge mx-truth-flag)
