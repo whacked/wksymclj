@@ -1,4 +1,4 @@
-(ns wksymclj.ui.graph-codec
+(ns wksymclj.codec.graph
   (:require [goog.dom :as gdom]
             [wksymclj.data-manipulation.graph :as grf]
             [wksymclj.example.dagre-state-view]

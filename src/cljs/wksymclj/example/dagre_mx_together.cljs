@@ -9,7 +9,7 @@
              :refer [get-edge-midpt
                      state-declaration-to-flow-graph]]
             [wksymclj.ui.dagre :as dagre]
-            [wksymclj.ui.graph-codec :as graph-codec]
+            [wksymclj.codec.graph :as graph-codec]
 
             [wksymclj.data-manipulation.xml
              :refer [xml->js js->xml]]
@@ -78,7 +78,7 @@
                        (:node-list my-flow-graph)
                        (:edge-list my-flow-graph))
           colors ["red" "blue" "green" "yellow" "pink"
-                  "purple" "brown" "violet" "pumpkin"]
+                  "purple" "brown" "violet" "orange"]
           mxgraph-data (graph-codec/dagre-graph-to-mxgraph-data dagre-graph)]
       
       ;; ;; render without modification
@@ -110,7 +110,7 @@
                                  (assoc :strokeColor
                                         (rand-nth colors))
                                  (assoc :strokeWidth (inc (rand-int 10)))
-                                 (assoc :dashed (rand-int 2))
+                                 (assoc :dashed (rand-nth [true false]))
                                  (dissoc :opacity (+ 0.3 (* 0.7 (rand))))
 
                                  (dissoc :fontFamily) ;; Verdana
@@ -211,8 +211,7 @@
                  "try it out")]
          :edge-list
          [["need-library"
-           "think-keywords"
-           {:label ""}]
+           "think-keywords"]
           ["think-keywords"
            "search-engine"
            {:label ""}]

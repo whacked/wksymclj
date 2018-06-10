@@ -43,27 +43,33 @@
 
 ;; the stylesheet is what enables rich shapes (ellipse, rhombus, etc)
 (def default-stylesheet
-  (mx-load-xml-document "resources/public/mxgraph/stylesheet.xml"))
+  (try
+    (mx-load-xml-document "resources/public/mxgraph/stylesheet.xml")
+    (catch js/Object e
+      nil)))
 
 ;; stencils enable specialized geometry
 (doseq [stencil-filepath ["resources/public/mxgraph/flowchart_stencil.xml"]]
-  (let [root flowchart-stencil
+  (let [root (mx-load-xml-document stencil-filepath)
         mx-package-name (-> root
                             (.getAttribute "name")
                             (clojure.string/lower-case))]
-    (doseq [shape-node (-> (aget flowchart-stencil "children")
+    (doseq [shape-node (-> (aget root "children")
                            (array-seq))]
-      (let [stencil-registry-name
-            (->> (.getAttribute shape-node "name")
-                 (clojure.string/lower-case)
-                 (str mx-package-name "."))]
-        (when (< 0 $DEBUG-LEVEL)
-          (js/console.log "adding stencil: "
-                          stencil-registry-name
-                          shape-node))
-        (.addStencil mxStencilRegistry
-                     stencil-registry-name
-                     (new mxStencil shape-node))))))
+      (try
+        (let [stencil-registry-name
+              (->> (.getAttribute shape-node "name")
+                   (clojure.string/lower-case)
+                   (str mx-package-name "."))]
+          (when (< 0 $DEBUG-LEVEL)
+            (js/console.log "adding stencil: "
+                            stencil-registry-name
+                            shape-node))
+          (.addStencil mxStencilRegistry
+                       stencil-registry-name
+                       (new mxStencil shape-node)))
+        (catch js/Object e
+          nil)))))
 
 ;; intention is to change appearance here. need to verify whether it does
 (doto (aget mxGraphView "prototype")
@@ -269,11 +275,11 @@
         decoder (new mxCodec xml-doc)
         node (aget xml-doc "documentElement")
         graph (new mxGraph mx-container)]
-    (doto graph
-      (.setHtmlLabels true)
-      (.setStylesheet
-       (-> (new mxCodec)
-           (.decode default-stylesheet))))
+    (.setHtmlLabels graph true)
+    (when default-stylesheet
+      (.setStylesheet graph
+                      (-> (new mxCodec)
+                          (.decode default-stylesheet))))
     ;; this call does the actual rendering to DOM
     (.decode decoder node (.getModel graph))
     graph))
