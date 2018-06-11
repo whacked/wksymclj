@@ -20,9 +20,21 @@
    (tfmt/formatter $TIDDLYWIKI-TIMESTAMP-FORMAT)
    clj-datetime))
 
+(def $tid-header-required-keys #{:created :modified :title :type})
+
+(defn is-valid-tid-header? [hdr]
+  (let [matches (->> $tid-header-required-keys
+                     (map hdr))]
+    (and (not (empty? matches))
+         (every? identity matches))))
+
+(defn split-tid [tid-content]
+  (clojure.string/split
+   tid-content #"\r?\n\r?\n" 2))
+
 (defn parse-tid-header [tid-content]
   (loop [remain (-> tid-content
-                    (clojure.string/split #"\r?\n\r?\n")
+                    (split-tid)
                     (first)
                     (clojure.string/split-lines))
          out {}]
@@ -33,7 +45,7 @@
                    (-> remain
                        (first)
                        (clojure.string/split
-                        #"([^:]+): (.+)\s*$"))
+                        #"([^:]+):\s*(.*)\s*$"))
                    k (keyword k-str)]
                (if-not k
                  out
@@ -44,3 +56,16 @@
                           (:tmap.style :tmap.edges) (json/read-str v-str) 
                           
                           v-str))))))))
+
+(defn parse-tid-content [tid-content]
+  (let [spl (split-tid tid-content)
+        maybe-hdr (parse-tid-header (first spl))]
+    (cond (not= 2 (count spl))
+          nil
+
+          (empty? maybe-hdr)
+          nil
+
+          :else
+          {:header maybe-hdr
+           :content (last spl)})))
