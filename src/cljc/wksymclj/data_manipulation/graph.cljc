@@ -7,9 +7,14 @@
 (spec/def ::y number?)
 (spec/def ::width number?)
 (spec/def ::height number?)
+(spec/def ::source #(or (number? %) (string? %)))
+(spec/def ::target #(or (number? %) (string? %)))
 
 (spec/def ::VizNode
   (spec/keys :opt-un [::x ::y ::width ::height]))
+
+(spec/def ::VizEdge
+  (spec/keys :req-un [::source ::target]))
 
 (def base-node-keys
   (->> (spec/describe ::VizNode)
@@ -18,9 +23,6 @@
        (rest)
        (filter sequential?)
        (apply concat)))
-
-;; placeholder: no clear generalization path now
-;; (spec/def ::GraphVizEdge)
 
 (defn get-edge-midpt [pt-seq]
   (let [npt (count pt-seq)
