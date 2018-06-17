@@ -109,6 +109,26 @@
                                            (map (partial
                                                  merge {:width 80
                                                         :height 30}))))))
+
+          get-adjust (fn [which]
+                       (->> tiddlymap-pos-info
+                            (map (fn [[_ m]]
+                                   (m which)))
+                            (apply Math/min)
+                            (Math/abs)))
+
+          adj-x (get-adjust "x")
+          adj-y (get-adjust "y")
+          
+          id2name (->> (dagre/get-node-id-mapping
+                        (:node-list my-flow-graph)
+                        2)
+                       (map (fn [[k v]] [v k]))
+                       (into {}))
+          get-position-info (fn [node-name]
+                              (when-let [file-info (@file-db node-name)]
+                                (let [tmap-id (get-in file-info [:metadata :tmap.id])]
+                                  (tiddlymap-pos-info tmap-id))))
           $target-el (gdom/getElement "panel-A")]
       (doto $target-el
         (browser/set-element-style!
@@ -119,4 +139,14 @@
            (:node-list my-flow-graph)
            (:edge-list my-flow-graph))
           (graph-codec/dagre-graph-to-mxgraph-data)
+          (mx/transform-cells-in-mxgraph
+           (fn [cell]
+             (if-let [pos (-> cell
+                              (:_id)
+                              (id2name)
+                              (get-position-info))]
+               (-> cell
+                   (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x 10))
+                   (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y 10)))
+               cell)))
           (mx/render-mxgraph-data-to-element! $target-el)))))
