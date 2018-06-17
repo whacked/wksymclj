@@ -13,7 +13,9 @@
             [wksymclj.ui.mxgraph :as mx
              :refer [underscoreify-keys]]
 
-            [wksymclj.ui.browser-interop :as browser]))
+            [wksymclj.ui.browser-interop :as browser]
+            [wksymclj.codec.cytoscape :as cyto-codec])
+   (:require-macros [swiss.arrows :refer [-<> -<>>]]))
 
 ;; there is a glob.sync method, but let's try to
 ;; concurrent-ize .org and .tid loaders.
@@ -150,7 +152,14 @@
                (-> cell
                    (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x 10))
                    (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y 10)))
-               cell)))
+               ;; remove the initial dagre layout because we are forcibly
+               ;; repositioning the nodes, causing the edge positiongs to
+               ;; be incorrect
+               (if-not (:_edge cell)
+                 cell
+                 (update-in cell [:mxGeometry :Array]
+                            (fn [a]
+                              (dissoc a :mxPoint)))))))
           (mx/render-mxgraph-data-to-element! $target-el)))))
 
 (comment
