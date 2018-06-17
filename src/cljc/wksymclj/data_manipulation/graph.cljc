@@ -16,6 +16,13 @@
 (spec/def ::VizEdge
   (spec/keys :req-un [::source ::target]))
 
+;; flow-graph structure
+(spec/def ::FlowgraphNode
+  (spec/keys :opt-un [::x ::y ::width ::height]))
+(spec/def ::FlowgraphEdge
+  (spec/or :source-target (spec/tuple string? string?)
+           :source-target-attr (spec/tuple string? string? map?)))
+
 (def base-node-keys
   (->> (spec/describe ::VizNode)
        (drop-while (fn [item]
