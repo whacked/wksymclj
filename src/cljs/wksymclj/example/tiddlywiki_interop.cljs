@@ -23,9 +23,9 @@
 
 (def file-db (atom {}))
 
-(defn load-directory! [base-dir db-atom]
+(defn load-directory! [tiddlers-dir db-atom]
   (doseq [extension ["org" "tid"]]
-    (glob (fio/path-join base-dir (str "**/*." extension))
+    (glob (fio/path-join tiddlers-dir (str "**/*." extension))
           (fn [err matches]
             (when err
               (throw err))
@@ -34,7 +34,7 @@
                  (mapv (fn [path]
                          (let [file-name (clojure.string/replace
                                           path (re-pattern
-                                                (str "^" base-dir "/"))
+                                                (str "^" tiddlers-dir "/"))
                                           "")]
                            (case extension
                              "tid"
@@ -53,6 +53,16 @@
                  (remove nil?)
                  (into {})
                  (reset! db-atom))))))
+
+(defn load-tiddlymap-position-info [tiddlers-dir]
+  (-> (fio/path-join
+       tiddlers-dir
+       "$__plugins_felixhayashi_tiddlymap_graph_views_all_map.tid")
+      (fio/simple-slurp)
+      (tw/parse-tid-content)
+      (:content)
+      (js/JSON.parse)
+      (js->clj)))
 
 ;; build the flow-graph
 (defn file-db-to-flow-graph [db]
@@ -75,8 +85,9 @@
               md (:metadata m)
               tmap-edges (:tmap.edges md)]
           (recur (rest remain)
-                 (conj node-list {:name k
-                                  :label (:title md)})
+                 (conj node-list (merge
+                                  {:name k
+                                   :label (:title md)}))
                  (concat edge-list (->> tmap-edges
                                         (map (fn [[edge-id edge-mapping]]
                                                (let [target-tmap-id (edge-mapping "to")
