@@ -163,33 +163,34 @@
           (mx/render-mxgraph-data-to-element! $target-el)))))
 
 (comment
-  (let [$target-el (gdom/getElement "panel-A")
+  (def my-cytograph
+    (let [$target-el (gdom/getElement "panel-A")
 
-        cyto-nodes (->> (file-db-to-flow-graph @file-db)
-                        (:node-list)
-                        (map (fn [node]
-                               (if-let [pos (some-> (:name node)
-                                                    (@file-db)
-                                                    (get-in [:metadata :tmap.id])
-                                                    (tiddlymap-pos-info))]
-                                 (merge (clojure.walk/keywordize-keys pos)
-                                        node)
-                                 node)))
-                        (map cyto-codec/to-cytoscape-node))
-        has-node? (->> cyto-nodes
-                       (map (fn [cnode]
-                              (get-in cnode [:data :id])))
-                       (into #{}))
-        cyto-data {:container $target-el
-                   :elements {:nodes cyto-nodes
-                              :edges (->> (file-db-to-flow-graph @file-db)
-                                          (:edge-list)
-                                          (filter (fn [edge]
-                                                    (or (has-node? (first edge))
-                                                        (has-node? (second edge)))))
-                                          (map cyto-codec/to-cytoscape-edge))}
+          cyto-nodes (->> (file-db-to-flow-graph @file-db)
+                          (:node-list)
+                          (map (fn [node]
+                                 (if-let [pos (some-> (:name node)
+                                                      (@file-db)
+                                                      (get-in [:metadata :tmap.id])
+                                                      (tiddlymap-pos-info))]
+                                   (merge (clojure.walk/keywordize-keys pos)
+                                          node)
+                                   node)))
+                          (map cyto-codec/to-cytoscape-node))
+          has-node? (->> cyto-nodes
+                         (map (fn [cnode]
+                                (get-in cnode [:data :id])))
+                         (into #{}))
+          cyto-data {:container $target-el
+                     :elements {:nodes cyto-nodes
+                                :edges (->> (file-db-to-flow-graph @file-db)
+                                            (:edge-list)
+                                            (filter (fn [edge]
+                                                      (or (has-node? (first edge))
+                                                          (has-node? (second edge)))))
+                                            (map cyto-codec/to-cytoscape-edge))}
 
-                   :layout {:name "cose"}
-                   :style [{:selector "node"
-                            :style {:content "data(id)"}}]}]
-    (cytoscape (clj->js cyto-data))))
+                     :layout {:name "cose"}
+                     :style [{:selector "node"
+                              :style {:content "data(id)"}}]}]
+      (cytoscape (clj->js cyto-data)))))
