@@ -177,14 +177,3 @@
     {:mxGraphModel
      {:root
       {:mxCell (concat mx-cell-seq mx-edge-seq)}}}))
-
-(comment
-  ;; example
-  (let [flow-graph (grf/state-declaration-to-flow-graph
-                    wksymclj.example.dagre-state-view/state-declaration-list)]
-    (-> (wksymclj.ui.dagre/make-dagre
-         (:node-list flow-graph)
-         (:edge-list flow-graph))
-        (dagre-graph-to-mxgraph-data)
-        (mx/render-mxgraph-data-to-element!
-         (gdom/getElement "panel-A")))))
