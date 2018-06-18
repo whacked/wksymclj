@@ -137,17 +137,44 @@
                            fname)]))
          (into {}))))
 
-(comment
-  (def my-mxgraph
-    (let [my-flow-graph (-> (file-db-to-flow-graph @file-db)
-                            (update :node-list
-                                    (fn [node-list]
-                                      (->> node-list
-                                           (map (partial
-                                                 merge {:width 100
-                                                        :height 40}))))))
+(defn load-node-content-to-element! [node-id element]
+  (js/console.info "loading: " node-id "...")
+  (if-let [node-data (@file-db node-id)]
+    (do
+      (r/render
+       [:div
+        {:style {:width "100%"
+                 :height "100%"
+                 :overflow "scroll"}}
+        [:h3 {:style {:font-family "Monospace"
+                      :color "#933"}}
+         node-id]
+        (-> node-data
+            (:content)
+            (wk-org/orga-org->hiccup))]
+       element)
+      (js/console.log "done: " node-id))
+    (js/console.warn (str "could not get data for: " node-id))))
 
-          get-adjust (fn [which]
+(comment
+  (def my-flow-graph
+    (-> (file-db-to-flow-graph @file-db)
+        (update :node-list
+                (fn [node-list]
+                  (->> node-list
+                       (map (partial
+                             merge {:width 100
+                                    :height 40})))))))
+  
+  (def mx-id2name
+    (->> (dagre/get-node-id-mapping
+          (:node-list my-flow-graph)
+          2)
+         (map (fn [[k v]] [v k]))
+         (into {})))
+
+  (def my-mxgraph
+    (let [get-adjust (fn [which]
                        (->> tiddlymap-pos-info
                             (map (fn [[_ m]]
                                    (m which)))
@@ -157,11 +184,7 @@
           adj-x (get-adjust "x")
           adj-y (get-adjust "y")
           
-          id2name (->> (dagre/get-node-id-mapping
-                        (:node-list my-flow-graph)
-                        2)
-                       (map (fn [[k v]] [v k]))
-                       (into {}))
+          id2name 
           get-position-info (fn [node-name]
                               (when-let [file-info (@file-db node-name)]
                                 (let [tmap-id (get-in file-info [:metadata :tmap.id])]
@@ -193,29 +216,23 @@
                    (update-in cell [:mxGeometry :Array]
                               (fn [a]
                                 (dissoc a :mxPoint))))))))
-          (mx/render-mxgraph-data-to-element! $target-el)))))
+          (mx/render-mxgraph-data-to-element! $target-el))))
 
+  (def mxEvent js/mxEvent)
+  (let [output-panel (gdom/getElement "panel-B")]
+    (defn handle-mxgraph-click
+      [sender evt]
+      (when-let [cell (.getProperty evt "cell")]
+        (when-let [node-name (-> (aget cell "id")
+                                 (js/parseInt)
+                                 (mx-id2name))]
+          (load-node-content-to-element! node-name output-panel))
+        (.consume evt))))
+  (.addListener my-mxgraph (aget mxEvent "CLICK")
+                (fn [sender evt]
+                  (handle-mxgraph-click sender evt)))
 
-(defn load-node-content-to-element! [element node-id]
-  (js/console.info "loading: " node-id "...")
-  (if-let [node-data (@file-db node-id)]
-    (do
-      (r/render
-       [:div
-        {:style {:width "100%"
-                 :height "100%"
-                 :overflow "scroll"}}
-        [:h3 {:style {:font-family "Monospace"
-                      :color "#933"}}
-         node-id]
-        (-> node-data
-            (:content)
-            (wk-org/orga-org->hiccup))]
-       element)
-      (js/console.log "done: " node-id))
-    (js/console.warn (str "could not get data for: " node-id))))
-
-(do ;;comment
+(comment
   (def my-cytograph
     (let [$target-el (gdom/getElement "panel-A")
 
@@ -259,4 +276,4 @@
                
                node (aget evt "target")
                node-id (js-invoke node "id")]
-           (load-node-content-to-element! output-pane node-id)))))
+           (load-node-content-to-element! node-id output-pane)))))
