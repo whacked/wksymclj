@@ -195,7 +195,27 @@
                                 (dissoc a :mxPoint))))))))
           (mx/render-mxgraph-data-to-element! $target-el)))))
 
-(comment
+
+(defn load-node-content-to-element! [element node-id]
+  (js/console.info "loading: " node-id "...")
+  (if-let [node-data (@file-db node-id)]
+    (do
+      (r/render
+       [:div
+        {:style {:width "100%"
+                 :height "100%"
+                 :overflow "scroll"}}
+        [:h3 {:style {:font-family "Monospace"
+                      :color "#933"}}
+         node-id]
+        (-> node-data
+            (:content)
+            (wk-org/orga-org->hiccup))]
+       element)
+      (js/console.log "done: " node-id))
+    (js/console.warn (str "could not get data for: " node-id))))
+
+(do ;;comment
   (def my-cytograph
     (let [$target-el (gdom/getElement "panel-A")
 
@@ -231,4 +251,12 @@
                               :style {:content "data(label)"}}]
                      
                      }]
-      (cytoscape (clj->js cyto-data)))))
+      (cytoscape (clj->js cyto-data))))
+  
+  (.on my-cytograph "tap" "node"
+       (fn [evt]
+         (let [output-pane (gdom/getElement "panel-B")
+               
+               node (aget evt "target")
+               node-id (js-invoke node "id")]
+           (load-node-content-to-element! output-pane node-id)))))
