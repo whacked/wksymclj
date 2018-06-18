@@ -176,7 +176,7 @@
                                    (merge (clojure.walk/keywordize-keys pos)
                                           node)
                                    node)))
-                          (map cyto-codec/to-cytoscape-node))
+                          (map cyto-codec/flowgraph-to-cytoscape-node))
           has-node? (->> cyto-nodes
                          (map (fn [cnode]
                                 (get-in cnode [:data :id])))
@@ -188,7 +188,7 @@
                                             (filter (fn [edge]
                                                       (or (has-node? (first edge))
                                                           (has-node? (second edge)))))
-                                            (map cyto-codec/to-cytoscape-edge))}
+                                            (map cyto-codec/flowgraph-to-cytoscape-edge))}
 
                      :layout {:name "cose"}
                      :style [{:selector "node"

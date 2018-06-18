@@ -31,8 +31,8 @@
 
 (defn make-cytoscape-elements [node-list edge-list]
   (vec
-   (concat (->> node-list (map to-cytoscape-node))
-           (->> edge-list (map to-cytoscape-edge)))))
+   (concat (->> node-list (map flowgraph-to-cytoscape-node))
+           (->> edge-list (map flowgraph-to-cytoscape-edge)))))
 
 (defn cytoscape-graph-to-json [cyto-graph]
   (.json cyto-graph))
