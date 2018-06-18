@@ -874,6 +874,20 @@
         (.parse org-content)
         (to-clj))))
 
+(defn org-ast-get-first-headline [org-ast]
+  (let [maybe-type (:type org-ast)]
+    (if-not maybe-type
+      nil
+      (if (= maybe-type "headline")
+        (some->> (:children org-ast)
+                 (filter (fn [node]
+                           (= "text" (:type node))))
+                 (first)
+                 (:value))
+        (some->> (:children org-ast)
+                 (map org-ast-get-first-headline)
+                 (first))))))
+
 (defn hast->hiccup [hast]
   (let [tag (case (aget hast "type")
               "root" :section
