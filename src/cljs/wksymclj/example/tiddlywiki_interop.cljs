@@ -14,8 +14,12 @@
              :refer [underscoreify-keys]]
 
             [wksymclj.ui.browser-interop :as browser]
-            [wksymclj.codec.cytoscape :as cyto-codec])
+            [wksymclj.codec.cytoscape :as cyto-codec]
+
+            [wksymclj.codec.org-mode :as wk-org])
    (:require-macros [swiss.arrows :refer [-<> -<>>]]))
+
+(def $TIDDLYWIKI-TIDDLERS-DIR "/tmp/tiddlers")
 
 ;; there is a glob.sync method, but let's try to
 ;; concurrent-ize .org and .tid loaders.
@@ -27,7 +31,12 @@
 
 (def file-db (atom {}))
 
-(defn load-directory! [tiddlers-dir db-atom]
+(defn load-directory!
+  "populates with mapping of
+   `file-name` -> { :path `file-path`
+                    :metadata `various`
+                    :content `raw` }"
+  [tiddlers-dir db-atom]
   (doseq [extension ["org" "tid"]]
     (glob (fio/path-join tiddlers-dir (str "**/*." extension))
           (fn [err matches]
@@ -35,6 +44,11 @@
               (throw err))
             (->> matches
                  (array-seq)
+                 ;; filter out tiddlywiki internal / plugin tiddlers
+                 ;; e.g. tiddlers/$__plugins_felixhayashi_vis.tid
+                 ;;      tiddlers/$__grouped.tid ... etc
+                 (filter (fn [path]
+                           (not (re-find #"[/\\]?\$__.+\.tid" path))))
                  (mapv (fn [path]
                          (let [file-name (clojure.string/replace
                                           path (re-pattern
@@ -102,17 +116,36 @@
                                         (remove empty?)))))))))
 
 (comment
-  
-  (load-directory! "/path/to/tiddlers" file-db)
 
+  (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
+
+  (def tiddlymap-pos-info
+    (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR))
+
+  (def filename->first-header
+    (->> @file-db
+         ;; get the anonymous tiddlers
+         (filter (fn [[fname fdata]]
+                   (and (= (get-in fdata [:metadata :type])
+                           "text/org")
+                        (re-find #"\d{4}-\d{2}-\d{2}[ _]\d{2}[-:]\d{2}[-:]\d{2}"
+                                 fname))))
+         (map (fn [[fname fdata]]
+                [fname (or (-> (:content fdata)
+                               (wk-org/org->clj-ast)
+                               (wk-org/org-ast-get-first-headline))
+                           fname)]))
+         (into {}))))
+
+(comment
   (def my-mxgraph
     (let [my-flow-graph (-> (file-db-to-flow-graph @file-db)
                             (update :node-list
                                     (fn [node-list]
                                       (->> node-list
                                            (map (partial
-                                                 merge {:width 80
-                                                        :height 30}))))))
+                                                 merge {:width 100
+                                                        :height 40}))))))
 
           get-adjust (fn [which]
                        (->> tiddlymap-pos-info
@@ -145,21 +178,21 @@
           (graph-codec/dagre-graph-to-mxgraph-data)
           (mx/transform-cells-in-mxgraph
            (fn [cell]
-             (if-let [pos (-> cell
-                              (:_id)
-                              (id2name)
-                              (get-position-info))]
-               (-> cell
-                   (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x 10))
-                   (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y 10)))
-               ;; remove the initial dagre layout because we are forcibly
-               ;; repositioning the nodes, causing the edge positiongs to
-               ;; be incorrect
-               (if-not (:_edge cell)
-                 cell
-                 (update-in cell [:mxGeometry :Array]
-                            (fn [a]
-                              (dissoc a :mxPoint)))))))
+             (let [node-name (-> cell (:_id) (id2name))
+                   override-label (filename->first-header node-name)]
+               (if-let [pos (get-position-info node-name)]
+                 (-> cell
+                     (assoc :_value (or override-label node-name))
+                     (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x 10))
+                     (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y 10)))
+                 ;; remove the initial dagre layout because we are forcibly
+                 ;; repositioning the nodes, causing the edge positiongs to
+                 ;; be incorrect
+                 (if-not (:_edge cell)
+                   cell
+                   (update-in cell [:mxGeometry :Array]
+                              (fn [a]
+                                (dissoc a :mxPoint))))))))
           (mx/render-mxgraph-data-to-element! $target-el)))))
 
 (comment
@@ -169,13 +202,16 @@
           cyto-nodes (->> (file-db-to-flow-graph @file-db)
                           (:node-list)
                           (map (fn [node]
-                                 (if-let [pos (some-> (:name node)
-                                                      (@file-db)
-                                                      (get-in [:metadata :tmap.id])
-                                                      (tiddlymap-pos-info))]
-                                   (merge (clojure.walk/keywordize-keys pos)
-                                          node)
-                                   node)))
+                                 (let [pos (some-> (:name node)
+                                                   (@file-db)
+                                                   (get-in [:metadata :tmap.id])
+                                                   (tiddlymap-pos-info)
+                                                   (clojure.walk/keywordize-keys))
+                                       override-label (filename->first-header (:name node))]
+                                   (-<>> (if override-label
+                                           (assoc node :label override-label)
+                                           node)
+                                         (merge pos)))))
                           (map cyto-codec/flowgraph-to-cytoscape-node))
           has-node? (->> cyto-nodes
                          (map (fn [cnode]
@@ -192,5 +228,7 @@
 
                      :layout {:name "cose"}
                      :style [{:selector "node"
-                              :style {:content "data(id)"}}]}]
+                              :style {:content "data(label)"}}]
+                     
+                     }]
       (cytoscape (clj->js cyto-data)))))
