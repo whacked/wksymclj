@@ -43,7 +43,7 @@
          org-document (.parse parser org-src)
          org-htmldoc (.convert org-document
                                (aget Org "ConverterHTML")
-                               (clj->js (merge default-config
+                              (clj->js (merge default-config
                                                custom-config)))]
      ;; INSPECT:
      ;; (js/console.dir org-htmldoc)
@@ -833,3 +833,90 @@
             })
           )
     ))
+
+
+
+;;;;;;;;;;;;;;;;;;;
+;; ORGA ADDITION ;;
+;;;;;;;;;;;;;;;;;;;
+;; npm install --save
+;;   unified orga orga-unified orga-rehype
+(def unified-js (nodejs/require "unified"))
+(def orga-parser (-> (nodejs/require "orga")
+                     (aget "Parser")))
+(def orga-uni-parser (nodejs/require "orga-unified"))
+(def orga-uni-translator (nodejs/require "orga-rehype"))
+
+(defn org->clj-ast
+  "read an org string, convert it to unified AST,
+   and convert that directly into edn"
+  [org-content]
+  (let [;; to-clj strips `parent` because it's a pointer
+        ;; to the parent node; this causes infinite loop
+        to-clj (fn to-clj [ast]
+                 (loop [remain (->> (.keys js/Object ast)
+                                    (array-seq)
+                                    (remove #{"parent"}))
+                        out {}]
+                   (if (empty? remain)
+                     out
+                     (let [k (first remain)
+                           data (if (= k "children")
+                                  (->> (aget ast k)
+                                       (map to-clj)
+                                       (vec))
+                                  (aget ast k))]
+                       (recur (rest remain)
+                              (assoc out
+                                     (keyword k)
+                                     (js->clj data)))))))]
+    (-> (new orga-parser)
+        (.parse org-content)
+        (to-clj))))
+
+(defn hast->hiccup [hast]
+  (let [tag (case (aget hast "type")
+              "root" :section
+              (or (some-> (aget hast "tagName")
+                          (keyword))
+                  :div))
+        prop (or (some-> (aget hast "properties")
+                         (js->clj :keywordize-keys true))
+                 {})
+        base-hiccup (if-let [value (aget hast "value")]
+                      [tag prop value]
+                      [tag prop])
+        children (or (some-> (aget hast "children")
+                             (array-seq))
+                     [])]
+    (->> children
+         (mapv hast->hiccup)
+         (concat base-hiccup)
+         (vec))))
+
+(defn hast-to-html-stringifier [config]
+  (this-as this
+    (aset this "Compiler"
+          (fn compiler [tree]
+            (hast-to-html tree)))
+    ;; perplexing unified/javascript behavior.
+    ;; returning `this` will cause breakage.
+    ;; it seems like _anything besides `this`_
+    ;; is fine.
+    "fakeout!"))
+
+(defn hast-to-hiccupifier [config]
+  (this-as this
+    (let [compiler
+          (fn compiler [hast]
+            (hast->hiccup hast))]
+      (aset this "Compiler" compiler))
+    "fakeout!"))
+
+(defn orga-org->hiccup [org-content]
+  (-> (unified-js)
+      (.use orga-uni-parser)
+      (.use orga-uni-translator)
+      (.use hast-to-hiccupifier)
+      (.processSync org-content)
+      (aget "contents")))
