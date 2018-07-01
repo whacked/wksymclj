@@ -934,3 +934,16 @@
       (.use hast-to-hiccupifier)
       (.processSync org-content)
       (aget "contents")))
+
+(defn parse-drawer
+  ;; this may get obviated if orga adds a native drawer parser
+  [drawer-text]
+  (->> drawer-text
+       (clojure.string/split-lines)
+       (map clojure.string/trim)
+       (map (fn [line]
+              (->> line
+                   (re-find #"^:([^:]+):\s+(.+)$")
+                   (rest)
+                   (vec))))
+       (into {})))
