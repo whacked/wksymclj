@@ -1,6 +1,9 @@
 (ns wksymclj.codec.org-mode
   (:require [cljs.nodejs :as nodejs]
-            [clojure.string]))
+            [clojure.string]
+            [com.rpl.specter :as spct])
+  (:require-macros
+   [com.rpl.specter :refer [select transform]]))
 
 (def $print-debug-to-console? true)
 (if $print-debug-to-console?
@@ -947,3 +950,44 @@
                    (rest)
                    (vec))))
        (into {})))
+
+;; see https://github.com/nathanmarz/specter/issues/201#issuecomment-292269620
+(def INDEXED
+  "A path that visits v and collects k in [[k v], ...].
+
+  This is useful if you want to collect a path to something, see [[path-walker]]."
+  [spct/ALL (spct/collect-one spct/FIRST) spct/LAST])
+
+(def INDEXED-SEQ
+  "A selector that visits all elements of a seq, and collects their indices.
+
+  This is useful if you want to collect a path to something, see [[path-walker]]."
+  [(spct/view #(map-indexed vector %)) INDEXED])
+
+(def path-walker
+  (spct/recursive-path
+   [term-pred] p
+   (spct/cond-path
+    (spct/pred term-pred) spct/STAY
+    map? [INDEXED p]
+    vector? [INDEXED-SEQ p])))
+
+(defn find-all-headlines
+  "returns a collection of maps;
+   the maps have structure
+   :path = path to the headline ast within the ast, reachable using `get-in`
+   :text = the headline text, i.e. text of the first child text element"
+  [orga-ast]
+  (->> orga-ast
+       (select
+        (path-walker
+         #(and (= "headline" (:type %)))))
+       (map (fn [section-path-and-target]
+              (let [section-path (vec (drop-last section-path-and-target))
+                    ;; the first child of the headline element should be a `type: text`
+                    ;; with the headline text. If the headline is empty, its value will
+                    ;; just be ""
+                    headline-text (get-in (last section-path-and-target)
+                                          [:children 0 :value])]
+                {:path section-path
+                 :text headline-text})))))
