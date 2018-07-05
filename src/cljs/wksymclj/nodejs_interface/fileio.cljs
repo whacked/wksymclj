@@ -1,6 +1,8 @@
 (ns wksymclj.nodejs-interface.fileio
   (:require [cljs.nodejs :as nodejs]
-            [clojure.string]))
+            [clojure.string])
+  (:require-macros
+   [swiss.arrows :refer [-<> -<>>]]))
 
 (def fs (nodejs/require "fs"))
 (def path (nodejs/require "path"))
@@ -46,3 +48,12 @@
                (if (path-exists? candidate-path)
                  candidate-path
                  result))))))
+
+(defn get-file-stat [filepath]
+  (if (path-exists? filepath)
+    (-<>> (.statSync fs filepath)
+          (.assign js/Object #js {})
+          (js->clj <> :keywordize-keys true))))
+
+(defn get-relative-path [base-path full-path]
+  (.relative path base-path full-path))
