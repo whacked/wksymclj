@@ -877,6 +877,11 @@
         (.parse org-content)
         (to-clj))))
 
+(defn clj-ast->hast [clj-ast]
+  (-> (unified-js)
+      (.use orga-uni-translator)
+      (.runSync (clj->js clj-ast))))
+
 (defn org-ast-get-first-headline [org-ast]
   (let [maybe-type (:type org-ast)]
     (if-not maybe-type
