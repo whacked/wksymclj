@@ -53,7 +53,13 @@
   (if (path-exists? filepath)
     (-<>> (.statSync fs filepath)
           (.assign js/Object #js {})
-          (js->clj <> :keywordize-keys true))))
+          (js->clj <> :keywordize-keys true)
+          (map (fn [[k v]]
+                 [k (if (= (type v)
+                           js/Date)
+                      (.getTime v)
+                      v)]))
+          (into {}))))
 
 (defn get-relative-path [base-path full-path]
   (.relative path base-path full-path))
