@@ -956,6 +956,31 @@
                    (vec))))
        (into {})))
 
+(defn orga-tree-id-getter [orga-tree]
+  (when (= (:type orga-tree)
+           "headline")
+    ;; see https://orgmode.org/manual/Property-syntax.html
+    ;; proper syntax dictates the draw must be right after the headline.
+    ;; the `orga-tree` should be a headline element; i.e., like
+    ;; {:type "headline",
+    ;;  :children
+    ;;  [{:type "text", :children [], :value "the headline text"}
+    ;;   {:type "drawer",
+    ;;    :children [],
+    ;;    :name "PROPERTIES",
+    ;;    :value "     :ID:       AABBCCDD-1111-2222-3333-44445555EEEE"}],
+    ;;  :level 4, 
+    ;;  :keyword nil, 
+    ;;  :priority nil, 
+    ;;  :tags []}
+    (let [first-element
+          (get-in orga-tree [:children 1])]
+      (if (= (:type first-element)
+             "drawer")
+        (-> (:value first-element)
+            (parse-drawer)
+            (get "ID"))))))
+
 ;; see https://github.com/nathanmarz/specter/issues/201#issuecomment-292269620
 (def INDEXED
   "A path that visits v and collects k in [[k v], ...].
