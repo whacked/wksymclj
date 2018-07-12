@@ -849,6 +849,7 @@
                      (aget "Parser")))
 (def orga-uni-parser (nodejs/require "orga-unified"))
 (def orga-uni-translator (nodejs/require "orga-rehype"))
+(def hast-to-html (nodejs/require "hast-util-to-html"))
 
 (defn org->clj-ast
   "read an org string, convert it to unified AST,
