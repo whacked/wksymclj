@@ -844,6 +844,7 @@
 ;;;;;;;;;;;;;;;;;;;
 ;; npm install --save
 ;;   unified orga orga-unified orga-rehype
+;; NOTE: orga@0.5.2 seems to break. @0.5.1 seems ok
 (def unified-js (nodejs/require "unified"))
 (def orga-parser (-> (nodejs/require "orga")
                      (aget "Parser")))
