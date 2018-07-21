@@ -184,7 +184,6 @@
           adj-x (get-adjust "x")
           adj-y (get-adjust "y")
           
-          id2name 
           get-position-info (fn [node-name]
                               (when-let [file-info (@file-db node-name)]
                                 (let [tmap-id (get-in file-info [:metadata :tmap.id])]
@@ -201,7 +200,7 @@
           (graph-codec/dagre-graph-to-mxgraph-data)
           (mx/transform-cells-in-mxgraph
            (fn [cell]
-             (let [node-name (-> cell (:_id) (id2name))
+             (let [node-name (-> cell (:_id) (mx-id2name))
                    override-label (filename->first-header node-name)]
                (if-let [pos (get-position-info node-name)]
                  (-> cell
@@ -228,9 +227,22 @@
                                  (mx-id2name))]
           (load-node-content-to-element! node-name output-panel))
         (.consume evt))))
-  (.addListener my-mxgraph (aget mxEvent "CLICK")
-                (fn [sender evt]
-                  (handle-mxgraph-click sender evt)))
+
+  (defn mxgraph-handle-mouse-wheel [evt]
+    (if (> 0 (aget evt "deltaY"))
+      (.zoomIn my-mxgraph)
+      (.zoomOut my-mxgraph))
+    (.preventDefault evt))
+
+  (doto my-mxgraph
+    (.setPanning true)
+    (aset "panningHandler" "useLeftButtonForPanning" true)
+    (.addListener (aget mxEvent "CLICK")
+                  (fn [sender evt]
+                    (handle-mxgraph-click sender evt)))
+    (-> (aget "container" "childNodes" 0)
+        (.addEventListener "wheel"
+                       mxgraph-handle-mouse-wheel))))
 
 (comment
   (def my-cytograph
