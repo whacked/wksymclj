@@ -30,6 +30,7 @@
 (def mxGraphView js/mxGraphView)
 (def mxStencil js/mxStencil)
 (def mxStencilRegistry js/mxStencilRegistry)
+(def mxCell js/mxCell)
 
 (defn mx-load-xml-document [fpath]
   (-<> (fio/simple-slurp fpath)
@@ -343,3 +344,112 @@
     spct/ALL]
    cell-transformer
    mx-graph))
+
+(defn begin-update! [graph]
+  (-> graph (.getModel) (.beginUpdate)))
+
+(defn end-update! [graph]
+  (-> graph (.getModel) (.endUpdate)))
+
+(defn mx-transact! [graph callable]
+  (begin-update! graph)
+  (try
+    (callable)
+    (catch js/Object e
+      (js/console.warn "ERROR!" e))
+    (finally
+      (end-update! graph))))
+
+(defn add-node [graph node-value x y w h]
+  (mx-transact!
+   graph
+   (fn []
+     (.insertVertex
+      graph
+      (.getDefaultParent graph)
+      nil node-value x y w h))))
+
+(defn remove-node [graph node-value]
+  (when-let [node (get-matching-cell
+                   graph
+                   {:value node-value
+                    :vertex true})]
+    (.removeCells graph (clj->js [node]))))
+
+(defn add-edge [graph
+                source-vertex target-vertex
+                & [label]]
+  (mx-transact!
+   graph
+   (fn []
+     (.insertEdge
+      graph
+      (.getDefaultParent graph)
+      nil label source-vertex target-vertex))))
+
+(defn remove-edge [graph source-node-value target-node-value]
+  (let [source-node (get-matching-cell
+                     graph {:value source-node-value :vertex true}
+                     :keywordize-keys true)
+        target-node (get-matching-cell
+                     graph {:value target-node-value :vertex true}
+                     :keywordize-keys true)]
+    (when (and source-node target-node)
+      (when-let [matching-edge
+                 (get-matching-cell
+                  graph
+                  {:edge true
+                   :source (select-keys source-node [:id])
+                   :target (select-keys target-node [:id])})]
+        (.removeCells graph (clj->js [matching-edge]))
+        true))))
+
+(defn contains-subtree? [target subtree]
+  (if-not (and (map? target)
+               (map? subtree))
+    false
+    (->> subtree
+         (map (fn [[k v]]
+                (let [target-v (target k)]
+                  (if (map? v)
+                    (contains-subtree? target-v v)
+                    (= v target-v)))))
+         (every? identity))))
+
+(defn to-plain-object [complex-object]
+  (js/Object.assign #js {} complex-object))
+
+(defn get-matching-cell
+  "Note this matches nodes (aka Vertex) as well as edges.
+   (get-matching-cell graph {:value \"some-node\"})
+   returns mxCell on match; nil on no match;
+   :keywordize-keys true
+   converts the match to a clojure map"
+  [graph matcher-map
+   & {:keys [keywordize-keys]
+      :or {keywordize-keys false}}]
+  (let [graph-cell-obj (aget graph "model" "cells")]
+    (loop [cell-id-coll (array-seq
+                         (js/Object.keys
+                          graph-cell-obj))
+           out nil]
+      (if (or out
+              (empty? cell-id-coll))
+        out
+        (let [cell-id (first cell-id-coll)
+              cell (aget graph-cell-obj cell-id)
+              cell-obj (let [obj (to-plain-object cell)]
+                         (doseq [expand-key ["source"
+                                             "target"
+                                             "geometry"]]
+                           (aset obj expand-key
+                                 (to-plain-object
+                                  (aget obj expand-key))))
+                         obj)
+              cell-data (js->clj cell-obj
+                                 :keywordize-keys true)]
+          (recur (rest cell-id-coll)
+                 (if (contains-subtree? cell-data matcher-map)
+                   (if keywordize-keys
+                     cell-data cell)
+                   nil)))))))
