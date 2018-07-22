@@ -345,65 +345,6 @@
    cell-transformer
    mx-graph))
 
-(defn begin-update! [graph]
-  (-> graph (.getModel) (.beginUpdate)))
-
-(defn end-update! [graph]
-  (-> graph (.getModel) (.endUpdate)))
-
-(defn mx-transact! [graph callable]
-  (begin-update! graph)
-  (try
-    (callable)
-    (catch js/Object e
-      (js/console.warn "ERROR!" e))
-    (finally
-      (end-update! graph))))
-
-(defn add-node [graph node-value x y w h]
-  (mx-transact!
-   graph
-   (fn []
-     (.insertVertex
-      graph
-      (.getDefaultParent graph)
-      nil node-value x y w h))))
-
-(defn remove-node [graph node-value]
-  (when-let [node (get-matching-cell
-                   graph
-                   {:value node-value
-                    :vertex true})]
-    (.removeCells graph (clj->js [node]))))
-
-(defn add-edge [graph
-                source-vertex target-vertex
-                & [label]]
-  (mx-transact!
-   graph
-   (fn []
-     (.insertEdge
-      graph
-      (.getDefaultParent graph)
-      nil label source-vertex target-vertex))))
-
-(defn remove-edge [graph source-node-value target-node-value]
-  (let [source-node (get-matching-cell
-                     graph {:value source-node-value :vertex true}
-                     :keywordize-keys true)
-        target-node (get-matching-cell
-                     graph {:value target-node-value :vertex true}
-                     :keywordize-keys true)]
-    (when (and source-node target-node)
-      (when-let [matching-edge
-                 (get-matching-cell
-                  graph
-                  {:edge true
-                   :source (select-keys source-node [:id])
-                   :target (select-keys target-node [:id])})]
-        (.removeCells graph (clj->js [matching-edge]))
-        true))))
-
 (defn contains-subtree? [target subtree]
   (if-not (and (map? target)
                (map? subtree))
@@ -411,8 +352,14 @@
     (->> subtree
          (map (fn [[k v]]
                 (let [target-v (target k)]
-                  (if (map? v)
+                  (cond
+                    (map? v)
                     (contains-subtree? target-v v)
+
+                    (fn? v)
+                    (v target-v)
+                    
+                    :else
                     (= v target-v)))))
          (every? identity))))
 
@@ -453,3 +400,83 @@
                    (if keywordize-keys
                      cell-data cell)
                    nil)))))))
+
+(defn get-matching-node [graph matcher-map
+                         & {:keys [keywordize-keys]
+                            :or {keywordize-keys false}}]
+  (get-matching-cell
+   graph
+   (assoc matcher-map :vertex identity)
+   :keywordize-keys keywordize-keys))
+
+(defn get-matching-edge [graph
+                         source-node-value
+                         target-node-value
+                         & {:keys [keywordize-keys]
+                            :or {keywordize-keys false}}]
+  (let [source-node (get-matching-node
+                     graph {:value source-node-value}
+                     :keywordize-keys true)
+        target-node (get-matching-node
+                     graph {:value target-node-value}
+                     :keywordize-keys true)]
+    (when (and source-node target-node)
+      (get-matching-cell
+       graph
+       {:edge identity
+        :source (select-keys source-node [:id])
+        :target (select-keys target-node [:id])}
+       :keywordize-keys keywordize-keys))))
+
+(defn begin-update! [graph]
+  (-> graph (.getModel) (.beginUpdate)))
+
+(defn end-update! [graph]
+  (-> graph (.getModel) (.endUpdate)))
+
+(defn mx-transact! [graph callable]
+  (begin-update! graph)
+  (try
+    (callable)
+    (catch js/Object e
+      (js/console.warn "ERROR!" e))
+    (finally
+      (end-update! graph))))
+
+(defn add-node! [graph node-value x y w h
+                 & [style-map]]
+  (mx-transact!
+   graph
+   (fn []
+     (.insertVertex
+      graph
+      (.getDefaultParent graph)
+      nil node-value x y w h
+      (if style-map (clj->mx-style style-map))))))
+
+(defn remove-node! [graph node-value]
+  (when-let [node (get-matching-cell
+                   graph
+                   {:value node-value
+                    :vertex identity})]
+    (.removeCells graph (clj->js [node]))))
+
+(defn add-edge! [graph
+                 source-vertex target-vertex
+                 & [label style-map]]
+  (mx-transact!
+   graph
+   (fn []
+     (.insertEdge
+      graph
+      (.getDefaultParent graph)
+      nil label source-vertex target-vertex
+      (if style-map (clj->mx-style style-map))))))
+
+(defn remove-edge! [graph source-node-value target-node-value]
+  (when-let [matching-edge
+             (get-matching-edge graph
+                                source-node-value
+                                target-node-value)]
+    (.removeCells graph (clj->js [matching-edge]))
+    true))
