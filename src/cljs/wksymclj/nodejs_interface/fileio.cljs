@@ -63,3 +63,6 @@
 
 (defn get-relative-path [base-path full-path]
   (.relative path base-path full-path))
+
+(defn get-extension [filepath]
+  (.extname path filepath))
