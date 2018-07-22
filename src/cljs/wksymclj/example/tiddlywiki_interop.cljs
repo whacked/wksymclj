@@ -223,10 +223,19 @@
           (mx/transform-cells-in-mxgraph
            (fn [cell]
              (let [node-name (-> cell (:_id) (mx-id2name))
-                   override-label (filename->first-header node-name)]
+                   override-label (or
+                                   ;; for anonymous tiddlers
+                                   (filename->first-header node-name)
+                                   ;; for normal tiddlers
+                                   (if node-name
+                                     (get-in
+                                      (@file-db node-name)
+                                      [:metadata :title])))]
                (if-let [pos (get-position-info node-name)]
                  (-> cell
-                     (assoc :_value (or override-label node-name))
+                     (assoc :_name node-name)
+                     (assoc :_value
+                            (or override-label node-name))
                      (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x 10))
                      (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y 10)))
                  ;; remove the initial dagre layout because we are forcibly
@@ -240,7 +249,7 @@
           (mx/render-mxgraph-data-to-element! $target-el))))
 
   (def mxEvent js/mxEvent)
-  (let [output-panel (gdom/getElement "panel-B")]
+  (let [output-panel (gdom/getElement "panel-C")]
     (defn mxgraph-handle-click
       [sender evt]
       (when-let [cell (.getProperty evt "cell")]
@@ -264,7 +273,7 @@
                     (mxgraph-handle-click sender evt)))
     (-> (aget "container" "childNodes" 0)
         (.addEventListener "wheel"
-                       mxgraph-handle-mouse-wheel))))
+                           mxgraph-handle-mouse-wheel))))
 
 (comment
   (def my-cytograph
@@ -297,9 +306,13 @@
                                                           (has-node? (second edge)))))
                                             (map cyto-codec/flowgraph-to-cytoscape-edge))}
 
-                     :layout {:name "cose"}
+                     :layout {:name "preset"  ;; "cose"
+                              }
                      :style [{:selector "node"
-                              :style {:content "data(label)"}}]
+                              :style {:content "data(label)"}}
+                             {:selector "edge"
+                              :style {:curve-style "bezier"
+                                      :target-arrow-shape "triangle"}}]
                      
                      }]
       (cytoscape (clj->js cyto-data))))
