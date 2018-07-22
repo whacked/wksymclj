@@ -1,7 +1,7 @@
 (ns wksymclj.ui.cytoscape)
 
-(defn add-node
-  "(add-node
+(defn add-node!
+  "(add-node!
     cyto-graph
     {:id \"my-new-node\"}
     {:position {:x -300 :y -300}})
@@ -11,7 +11,7 @@
                                       {:data node-data}
                                       extra-data)]})))
 
-(defn remove-node [cyto-graph node-id]
+(defn remove-node! [cyto-graph node-id]
   (let [matching-nodes (.elements
                         cyto-graph
                         (str "node[id=\"" node-id "\"]"))]
@@ -19,8 +19,8 @@
       (.remove cyto-graph matching-nodes)
       true)))
 
-(defn add-edge
-  "(add-edge
+(defn add-edge!
+  "(add-edge!
       cyto-graph
       source-id
       target-id
@@ -36,7 +36,7 @@
                                    :target target-id}}
                            extra-data)]})))
 
-(defn remove-edge [cyto-graph source-id target-id]
+(defn remove-edge! [cyto-graph source-id target-id]
   (let [matching-edges
         (.elements
          cyto-graph
