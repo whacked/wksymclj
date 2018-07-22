@@ -12,6 +12,7 @@
 
             [wksymclj.ui.mxgraph :as mx
              :refer [underscoreify-keys]]
+            [wksymclj.ui.cytoscape :as cyto]
 
             [wksymclj.ui.browser-interop :as browser]
             [wksymclj.codec.cytoscape :as cyto-codec]
