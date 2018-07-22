@@ -324,3 +324,40 @@
                node (aget evt "target")
                node-id (js-invoke node "id")]
            (load-node-content-to-element! node-id output-pane)))))
+
+(comment
+  ;; add tiddlywiki tag edges
+  (let [graph-backend :cytoscape ;; :mxgraph
+        title-map (->> @file-db
+                       (map (fn [[k m]]
+                              (if-let [title (get-in m [:metadata :title])]
+                                [title k])))
+                       (remove empty?)
+                       (into {}))
+        get-mx-node (memoize (fn [node-id]
+                               (mx/get-matching-cell
+                                my-mxgraph {:name node-id})))]
+    (->> @file-db
+         (map (fn [[source-id source-entry]]
+                (if-let [metadata-tags (-> (get-in source-entry [:metadata :tags])
+                                           (clojure.string/split #"\s+"))]
+                  (doseq [tag metadata-tags]
+                    (when-let [target-id (get title-map tag)]
+                      (println (str source-id " --(" tag ")--> " target-id))
+                      (case graph-backend
+                        :mxgraph
+                        (let [source-node (get-mx-node source-id)
+                              target-node (get-mx-node target-id)]
+                          (mx/add-edge my-mxgraph
+                                       source-node target-node
+                                       "tagged with"))
+
+                        :cytoscape
+                        (cyto/add-edge
+                         my-cytograph
+                         source-id
+                         target-id
+                         {:style {:content "tagged with"
+                                  :width 2
+                                  :line-color "green"
+                                  :target-arrow-color "green"}}))))))))))
