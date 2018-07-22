@@ -327,16 +327,16 @@
 
 (comment
   ;; add tiddlywiki tag edges
-  (let [graph-backend :cytoscape ;; :mxgraph
+  (let [graph my-cytograph ;; my-mxgraph
         title-map (->> @file-db
                        (map (fn [[k m]]
                               (if-let [title (get-in m [:metadata :title])]
                                 [title k])))
                        (remove empty?)
                        (into {}))
-        get-mx-node (memoize (fn [node-id]
+        get-mx-node (memoize (fn [G node-id]
                                (mx/get-matching-cell
-                                my-mxgraph {:name node-id})))]
+                                G {:name node-id})))]
     (->> @file-db
          (map (fn [[source-id source-entry]]
                 (if-let [metadata-tags (-> (get-in source-entry [:metadata :tags])
@@ -344,20 +344,25 @@
                   (doseq [tag metadata-tags]
                     (when-let [target-id (get title-map tag)]
                       (println (str source-id " --(" tag ")--> " target-id))
-                      (case graph-backend
-                        :mxgraph
-                        (let [source-node (get-mx-node source-id)
-                              target-node (get-mx-node target-id)]
-                          (mx/add-edge my-mxgraph
-                                       source-node target-node
-                                       "tagged with"))
-
-                        :cytoscape
-                        (cyto/add-edge
-                         my-cytograph
+                      (case (aget graph "constructor" "name")
+                        "mxGraph"
+                        (let [source-node (get-mx-node graph source-id)
+                              target-node (get-mx-node graph target-id)]
+                          (mx/add-edge! graph
+                                        source-node target-node
+                                        "tagged with"
+                                        {:strokeWidth 2
+                                         :strokeColor "green"
+                                         :labelBackgroundColor "yellow"
+                                         :dashed true}))
+                        
+                        "Core" ;; cytoscape
+                        (cyto/add-edge!
+                         graph
                          source-id
                          target-id
                          {:style {:content "tagged with"
                                   :width 2
                                   :line-color "green"
+                                  :line-style "dashed"
                                   :target-arrow-color "green"}}))))))))))
