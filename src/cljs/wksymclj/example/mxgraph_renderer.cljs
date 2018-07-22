@@ -34,7 +34,7 @@
             (js->xml))))))
 
 (comment
-  (render-mxgraph-data-to-element!
+  (mx/render-mxgraph-data-to-element!
    {:mxGraphModel
     {:root
      {:mxCell [{:_id 0}
