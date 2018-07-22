@@ -54,27 +54,44 @@
        (doseq [event-handler (:resize @event-handlers)]
          (event-handler evt))))))
 
+(defn make-react-subcomponent [component-name label]
+  (let [panel-id (str "panel-" label)]
+    {:type "react-component"
+     :component component-name
+     :title panel-id
+     :props {:id panel-id
+             :label label}}))
+
+(defn convert-panel-config-edn [component-name panel-config]
+  (if-let [react-component-label
+           (:react-component panel-config)]
+    (make-react-subcomponent
+     component-name
+     react-component-label)
+    (update panel-config
+            :content (fn [sub-panel-coll]
+                       (map (partial
+                             convert-panel-config-edn
+                             component-name)
+                            sub-panel-coll)))))
+
 (defn setup-react-layout! [container & {:keys [on-complete
                                                layout]
                                         :or {on-complete init-window-event-handers!}}]
   (let [_component-name "my-component"
         _panel-container-class "panel-container"
-        layout-spec (or layout
-                        (let [make-subcomponent (fn [label]
-                                                  (let [panel-id (str "panel-" label)]
-                                                    {:type "react-component"
-                                                     :component _component-name
-                                                     :title panel-id
-                                                     :props {:id panel-id
-                                                             :label label}}))]
-                          {:content
-                           [{:type "row"
-                             :content
-                             [(make-subcomponent "A")
-                              {:type "column"
-                               :content
-                               [(make-subcomponent "B")
-                                (make-subcomponent "C")]}]}]}))
+        layout-spec (convert-panel-config-edn
+                     _component-name
+                     (or layout
+                         {:content
+                          [{:type "row"
+                            :content
+                            [{:react-component "A"}
+                             {:type "column"
+                              :content
+                              [{:react-component "B"}
+                               {:react-component "C"}]}
+                             {:react-component "D"}]}]}))
         
         gl-layout (js/GoldenLayout.
                    (clj->js layout-spec)
