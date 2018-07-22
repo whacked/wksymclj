@@ -31,6 +31,42 @@
 
 (def file-db (atom {}))
 
+
+(defn FileInfoStruct [filepath content]
+  {:path filepath
+   :content content})
+
+(def file-info-struct-mapping
+  {"tid" (fn tid-parser [filepath]
+           (when-let [tid (-> filepath
+                              (fio/simple-slurp)
+                              (tw/parse-tid-content))]
+             (-> (FileInfoStruct
+                  filepath (:content tid))
+                 (assoc :metadata (:header tid)))))
+   "raw" (fn general-parser [filepath]
+           (FileInfoStruct
+            filepath
+            (fio/simple-slurp filepath)))})
+
+(defn get-file-info-struct-parser [extension]
+  (file-info-struct-mapping
+   extension
+   (file-info-struct-mapping "raw")))
+
+(defn load-file-info [file-path]
+  (let [extension (subs (fio/get-extension file-path) 1)
+        parser (get-file-info-struct-parser extension)]
+    (parser file-path)))
+
+(defn cache-file-info! [db-atom repo-dir file-path]
+  (let [file-name (fio/get-relative-path
+                   repo-dir file-path)]
+    (swap! db-atom
+           update file-name
+           (fn [x]
+             (load-file-info file-path)))))
+
 (defn load-directory!
   "populates with mapping of
    `file-name` -> { :path `file-path`
@@ -50,24 +86,9 @@
                  (filter (fn [path]
                            (not (re-find #"[/\\]?\$__.+\.tid" path))))
                  (mapv (fn [path]
-                         (let [file-name (clojure.string/replace
-                                          path (re-pattern
-                                                (str "^" tiddlers-dir "/"))
-                                          "")]
-                           (case extension
-                             "tid"
-                             (when-let [tid (-> path
-                                                (fio/simple-slurp)
-                                                (tw/parse-tid-content))]
-                               [file-name {:path path
-                                           :metadata (:header tid)
-                                           :content (:content tid)}])
-
-                             "org"
-                             [file-name {:path path
-                                         :content (fio/simple-slurp path)}]
-                             
-                             nil))))
+                         (let [file-name (fio/get-relative-path
+                                          tiddlers-dir path)]
+                           [file-name (load-file-info path)])))
                  (remove nil?)
                  (into {})
                  (reset! db-atom))))))
@@ -219,7 +240,7 @@
 
   (def mxEvent js/mxEvent)
   (let [output-panel (gdom/getElement "panel-B")]
-    (defn handle-mxgraph-click
+    (defn mxgraph-handle-click
       [sender evt]
       (when-let [cell (.getProperty evt "cell")]
         (when-let [node-name (-> (aget cell "id")
@@ -239,7 +260,7 @@
     (aset "panningHandler" "useLeftButtonForPanning" true)
     (.addListener (aget mxEvent "CLICK")
                   (fn [sender evt]
-                    (handle-mxgraph-click sender evt)))
+                    (mxgraph-handle-click sender evt)))
     (-> (aget "container" "childNodes" 0)
         (.addEventListener "wheel"
                        mxgraph-handle-mouse-wheel))))
