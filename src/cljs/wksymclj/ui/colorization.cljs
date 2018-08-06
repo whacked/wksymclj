@@ -4,7 +4,7 @@
 (def ObjectHash (nodejs/require "object-hash"))
 (def ColorHash (nodejs/require "color-hash"))
 
-(defn to-hex-color [js-obj]
-  (let [hash (ObjectHash js-obj)]
+(defn to-hex-color [obj]
+  (let [hash (ObjectHash (clj->js obj))]
     (-> (new ColorHash)
         (.hex hash))))
