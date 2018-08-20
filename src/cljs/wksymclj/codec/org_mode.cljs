@@ -196,9 +196,11 @@
   (comment
     (cljs.pprint/pprint
      (org2hiccup org-src)))
-  (-> (new OrgParser)
-      (.parse org-src)
-      (.convert converter-hiccup)))
+  (concat
+   [:div {}]
+   (-> (new OrgParser)
+       (.parse org-src)
+       (.convert converter-hiccup))))
 
 (defn get-export-option [org-object option-name]
   (let [option-key (if (keyword? option-name)
@@ -213,6 +215,7 @@
   converter-urlPattern (re-pattern "(?i)\\b(?:https?://|www\\d{0,3}[.]|[a-z0-9.\\-]+[.][a-z]{2,4}/)(?:[^\\s()<>]+|\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\))+(?:\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\)|[^\\s`!()\\[\\]{};:'\\\".,<>?«»“”‘’])"))
 
 (declare converterMapping)
+(declare escapeSpecialChars)
 
 (defn get-node-type [node]
   (aget node "type"))
