@@ -138,26 +138,28 @@
                                         (remove empty?)))))))))
 
 (comment
+  (do
+    (def $TIDDLYWIKI-TIDDLERS-DIR "/tmp/t_drive/dump/note/org/tw/tiddlers")
 
-  (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
+    (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
 
-  (def tiddlymap-pos-info
-    (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR))
+    (def tiddlymap-pos-info
+      (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR))
 
-  (def filename->first-header
-    (->> @file-db
-         ;; get the anonymous tiddlers
-         (filter (fn [[fname fdata]]
-                   (and (= (get-in fdata [:metadata :type])
-                           "text/org")
-                        (re-find #"\d{4}-\d{2}-\d{2}[ _]\d{2}[-:]\d{2}[-:]\d{2}"
-                                 fname))))
-         (map (fn [[fname fdata]]
-                [fname (or (-> (:content fdata)
-                               (wk-org/org->clj-ast)
-                               (wk-org/org-ast-get-first-headline))
-                           fname)]))
-         (into {}))))
+    (def filename->first-header
+      (->> @file-db
+           ;; get the anonymous tiddlers
+           (filter (fn [[fname fdata]]
+                     (and (= (get-in fdata [:metadata :type])
+                             "text/org")
+                          (re-find #"\d{4}-\d{2}-\d{2}[ _]\d{2}[-:]\d{2}[-:]\d{2}"
+                                   fname))))
+           (map (fn [[fname fdata]]
+                  [fname (or (-> (:content fdata)
+                                 (wk-org/org->clj-ast)
+                                 (wk-org/org-ast-get-first-headline))
+                             fname)]))
+           (into {})))))
 
 (defn load-node-content-to-element! [node-id element]
   (js/console.info "loading: " node-id "...")
@@ -179,190 +181,213 @@
     (js/console.warn (str "could not get data for: " node-id))))
 
 (comment
-  (def my-flow-graph
-    (-> (file-db-to-flow-graph @file-db)
-        (update :node-list
-                (fn [node-list]
-                  (->> node-list
-                       (map (partial
-                             merge {:width 100
-                                    :height 40})))))))
+  (do
+    (def my-flow-graph
+      (-> (file-db-to-flow-graph @file-db)
+          (update :node-list
+                  (fn [node-list]
+                    (->> node-list
+                         (map (partial
+                               merge {:width 100
+                                      :height 40})))))))
   
-  (def mx-id2name
-    (->> (dagre/get-node-id-mapping
-          (:node-list my-flow-graph)
-          2)
-         (map (fn [[k v]] [v k]))
-         (into {})))
+    (def mx-id2name
+      (->> (dagre/get-node-id-mapping
+            (:node-list my-flow-graph)
+            2)
+           (map (fn [[k v]] [v k]))
+           (into {})))
 
-  (def my-mxgraph
-    (let [get-adjust (fn [which]
-                       (->> tiddlymap-pos-info
-                            (map (fn [[_ m]]
-                                   (m which)))
-                            (apply Math/min)
-                            (Math/abs)))
+    (def my-mxgraph
+      (let [get-adjust (fn [which]
+                         (->> tiddlymap-pos-info
+                              (map (fn [[_ m]]
+                                     (m which)))
+                              (apply Math/min)
+                              (Math/abs)))
 
-          adj-x (get-adjust "x")
-          adj-y (get-adjust "y")
+            adj-x (get-adjust "x")
+            adj-y (get-adjust "y")
           
-          get-position-info (fn [node-name]
-                              (when-let [file-info (@file-db node-name)]
-                                (let [tmap-id (get-in file-info [:metadata :tmap.id])]
-                                  (tiddlymap-pos-info tmap-id))))
-          $target-el (gdom/getElement "panel-A")]
-      (doto $target-el
-        (browser/set-element-style!
-         {:overflow "scroll"
-          :border "2px solid red"}))
+            get-position-info (fn [node-name]
+                                (when-let [file-info (@file-db node-name)]
+                                  (let [tmap-id (get-in file-info [:metadata :tmap.id])]
+                                    (tiddlymap-pos-info tmap-id))))
+            $target-el (gdom/getElement "panel-A")]
+        (doto $target-el
+          (browser/set-element-style!
+           {:overflow "scroll"
+            :border "2px solid red"}))
       
-      (-> (dagre/make-dagre
-           (:node-list my-flow-graph)
-           (:edge-list my-flow-graph))
-          (graph-codec/dagre-graph-to-mxgraph-data)
-          (mx/transform-cells-in-mxgraph
-           (fn [cell]
-             (let [node-name (-> cell (:_id) (mx-id2name))
-                   override-label (or
-                                   ;; for anonymous tiddlers
-                                   (filename->first-header node-name)
-                                   ;; for normal tiddlers
-                                   (if node-name
-                                     (get-in
-                                      (@file-db node-name)
-                                      [:metadata :title])))]
-               (if-let [pos (get-position-info node-name)]
-                 (-> cell
-                     (assoc :_name node-name)
-                     (assoc :_value
-                            (or override-label node-name))
-                     (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x 10))
-                     (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y 10)))
-                 ;; remove the initial dagre layout because we are forcibly
-                 ;; repositioning the nodes, causing the edge positiongs to
-                 ;; be incorrect
-                 (if-not (:_edge cell)
-                   cell
-                   (update-in cell [:mxGeometry :Array]
-                              (fn [a]
-                                (dissoc a :mxPoint))))))))
-          (mx/render-mxgraph-data-to-element! $target-el))))
+        (-> (dagre/make-dagre
+             (:node-list my-flow-graph)
+             (:edge-list my-flow-graph))
+            (graph-codec/dagre-graph-to-mxgraph-data)
+            (mx/transform-cells-in-mxgraph
+             (fn [cell]
+               (let [node-name (-> cell (:_id) (mx-id2name))
+                     override-label (or
+                                     ;; for anonymous tiddlers
+                                     (filename->first-header node-name)
+                                     ;; for normal tiddlers
+                                     (if node-name
+                                       (get-in
+                                        (@file-db node-name)
+                                        [:metadata :title])))]
+                 (if-let [pos (get-position-info node-name)]
+                   (-> cell
+                       (assoc :_name node-name)
+                       (assoc :_value
+                              (or override-label node-name))
+                       (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x 10))
+                       (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y 10)))
+                   ;; remove the initial dagre layout because we are forcibly
+                   ;; repositioning the nodes, causing the edge positiongs to
+                   ;; be incorrect
+                   (if-not (:_edge cell)
+                     cell
+                     (update-in cell [:mxGeometry :Array]
+                                (fn [a]
+                                  (dissoc a :mxPoint))))))))
+            (mx/render-mxgraph-data-to-element! $target-el))))
 
-  (def mxEvent js/mxEvent)
-  (let [output-panel (gdom/getElement "panel-C")]
-    (defn mxgraph-handle-click
-      [sender evt]
-      (when-let [cell (.getProperty evt "cell")]
-        (when-let [node-name (-> (aget cell "id")
-                                 (js/parseInt)
-                                 (mx-id2name))]
-          (load-node-content-to-element! node-name output-panel))
-        (.consume evt))))
+    (def mxEvent js/mxEvent)
+    (let [output-panel (gdom/getElement "panel-C")]
+      (defn mxgraph-handle-click
+        [sender evt]
+        (when-let [cell (.getProperty evt "cell")]
+          (when-let [node-name (-> (aget cell "id")
+                                   (js/parseInt)
+                                   (mx-id2name))]
+            (load-node-content-to-element! node-name output-panel))
+          (.consume evt))))
 
-  (defn mxgraph-handle-mouse-wheel [evt]
-    (if (> 0 (aget evt "deltaY"))
-      (.zoomIn my-mxgraph)
-      (.zoomOut my-mxgraph))
-    (.preventDefault evt))
+    (defn mxgraph-handle-mouse-wheel [evt]
+      (if (> 0 (aget evt "deltaY"))
+        (.zoomIn my-mxgraph)
+        (.zoomOut my-mxgraph))
+      (.preventDefault evt))
 
-  (doto my-mxgraph
-    (.setPanning true)
-    (aset "panningHandler" "useLeftButtonForPanning" true)
-    (.addListener (aget mxEvent "CLICK")
-                  (fn [sender evt]
-                    (mxgraph-handle-click sender evt)))
-    (-> (aget "container" "childNodes" 0)
-        (.addEventListener "wheel"
-                           mxgraph-handle-mouse-wheel))))
+    (doto my-mxgraph
+      (.setPanning true)
+      (aset "panningHandler" "useLeftButtonForPanning" true)
+      (.addListener (aget mxEvent "CLICK")
+                    (fn [sender evt]
+                      (mxgraph-handle-click sender evt)))
+      (-> (aget "container" "childNodes" 0)
+          (.addEventListener "wheel"
+                             mxgraph-handle-mouse-wheel)))))
+
+(do
+ (.add my-cytograph
+       (clj->js {:edges [(merge
+                          {:data {:source source-id
+                                  :target target-id}}
+                          extra-data)]})))
 
 (comment
-  (def my-cytograph
-    (let [$target-el (gdom/getElement "panel-A")
+  (do
+    (def my-cytograph
+      (let [$target-el (gdom/getElement "panel-A")
 
-          cyto-nodes (->> (file-db-to-flow-graph @file-db)
-                          (:node-list)
-                          (map (fn [node]
-                                 (let [pos (some-> (:name node)
-                                                   (@file-db)
-                                                   (get-in [:metadata :tmap.id])
-                                                   (tiddlymap-pos-info)
-                                                   (clojure.walk/keywordize-keys))
-                                       override-label (filename->first-header (:name node))]
-                                   (-<>> (if override-label
-                                           (assoc node :label override-label)
-                                           node)
-                                         (merge pos)))))
-                          (map cyto-codec/flowgraph-to-cytoscape-node))
-          has-node? (->> cyto-nodes
-                         (map (fn [cnode]
-                                (get-in cnode [:data :id])))
-                         (into #{}))
-          cyto-data {:container $target-el
-                     :elements {:nodes cyto-nodes
-                                :edges (->> (file-db-to-flow-graph @file-db)
-                                            (:edge-list)
-                                            (filter (fn [edge]
-                                                      (or (has-node? (first edge))
-                                                          (has-node? (second edge)))))
-                                            (map cyto-codec/flowgraph-to-cytoscape-edge))}
+            cyto-nodes (->> (file-db-to-flow-graph @file-db)
+                            (:node-list)
+                            (map (fn [node]
+                                   (let [pos (some-> (:name node)
+                                                     (@file-db)
+                                                     (get-in [:metadata :tmap.id])
+                                                     (tiddlymap-pos-info)
+                                                     (clojure.walk/keywordize-keys))
+                                         override-label (filename->first-header (:name node))]
+                                     (-<>> (if override-label
+                                             (assoc node :label override-label)
+                                             node)
+                                           (merge pos)))))
+                            (map cyto-codec/flowgraph-to-cytoscape-node))
+            has-node? (->> cyto-nodes
+                           (map (fn [cnode]
+                                  (get-in cnode [:data :id])))
+                           (into #{}))
+            cyto-data {:container $target-el
+                       :elements {:nodes cyto-nodes
+                                  :edges (->> (file-db-to-flow-graph @file-db)
+                                              (:edge-list)
+                                              (filter (fn [edge]
+                                                        (or (has-node? (first edge))
+                                                            (has-node? (second edge)))))
+                                              (map cyto-codec/flowgraph-to-cytoscape-edge))}
 
-                     :layout {:name "preset"  ;; "cose"
-                              }
-                     :style [{:selector "node"
-                              :style {:content "data(label)"}}
-                             {:selector "edge"
-                              :style {:curve-style "bezier"
-                                      :target-arrow-shape "triangle"}}]
+                       :layout {:name "preset" ;; "cose"
+                                }
+                       :style [{:selector "node"
+                                :style {:content "data(label)"}}
+                               {:selector "edge"
+                                :style {:curve-style "bezier"
+                                        :target-arrow-shape "triangle"}}]
                      
-                     }]
-      (cytoscape (clj->js cyto-data))))
+                       }]
+        (cytoscape (clj->js cyto-data))))
   
-  (.on my-cytograph "tap" "node"
-       (fn [evt]
-         (let [output-pane (gdom/getElement "panel-B")
+    (.on my-cytograph "tap" "node"
+         (fn [evt]
+           (let [output-pane (gdom/getElement "panel-C")
                
-               node (aget evt "target")
-               node-id (js-invoke node "id")]
-           (load-node-content-to-element! node-id output-pane)))))
+                 node (aget evt "target")
+                 node-id (js-invoke node "id")]
+             (load-node-content-to-element! node-id output-pane))))))
 
-(comment
-  ;; add tiddlywiki tag edges
-  (let [graph my-cytograph ;; my-mxgraph
-        title-map (->> @file-db
-                       (map (fn [[k m]]
-                              (if-let [title (get-in m [:metadata :title])]
-                                [title k])))
-                       (remove empty?)
-                       (into {}))
-        get-mx-node (memoize (fn [G node-id]
-                               (mx/get-matching-cell
-                                G {:name node-id})))]
-    (->> @file-db
-         (map (fn [[source-id source-entry]]
-                (if-let [metadata-tags (-> (get-in source-entry [:metadata :tags])
-                                           (clojure.string/split #"\s+"))]
-                  (doseq [tag metadata-tags]
-                    (when-let [target-id (get title-map tag)]
-                      (println (str source-id " --(" tag ")--> " target-id))
-                      (case (aget graph "constructor" "name")
-                        "mxGraph"
-                        (let [source-node (get-mx-node graph source-id)
-                              target-node (get-mx-node graph target-id)]
-                          (mx/add-edge! graph
-                                        source-node target-node
-                                        "tagged with"
-                                        {:strokeWidth 2
-                                         :strokeColor "green"
-                                         :labelBackgroundColor "yellow"
-                                         :dashed true}))
-                        
-                        "Core" ;; cytoscape
-                        (cyto/add-edge!
-                         graph
-                         source-id
-                         target-id
-                         {:style {:content "tagged with"
-                                  :width 2
-                                  :line-color "green"
-                                  :line-style "dashed"
-                                  :target-arrow-color "green"}}))))))))))
+(defn get-active-graph-type []
+  (cond (js/document.querySelector
+         (str "#panel-A" " canvas"))
+        :cytograph
+
+        (js/document.querySelector
+         (str "#panel-A" " svg"))
+        :mxgraph
+
+        :else nil))
+
+(defn render-tiddlywiki-tags-edges! []
+  (when-let [graph (case (get-active-graph-type)
+                     :cytograph my-cytograph
+                     :mxgraph my-mxgraph
+                     nil)]
+    ;; add tiddlywiki tag edges
+    (let [title-map (->> @file-db
+                         (map (fn [[k m]]
+                                (if-let [title (get-in m [:metadata :title])]
+                                  [title k])))
+                         (remove empty?)
+                         (into {}))
+          get-mx-node (memoize (fn [G node-id]
+                                 (mx/get-matching-cell
+                                  G {:name node-id})))]
+      (->> @file-db
+           (map (fn [[source-id source-entry]]
+                  (if-let [metadata-tags (-> (get-in source-entry [:metadata :tags])
+                                             (clojure.string/split #"\s+"))]
+                    (doseq [tag metadata-tags]
+                      (when-let [target-id (get title-map tag)]
+                        ;; (println (str source-id " --(" tag ")--> " target-id))
+                        (case (aget graph "constructor" "name")
+                          "mxGraph"
+                          (let [source-node (get-mx-node graph source-id)
+                                target-node (get-mx-node graph target-id)]
+                            (mx/add-edge! graph
+                                          source-node target-node
+                                          "tagged with"
+                                          {:strokeWidth 2
+                                           :strokeColor "green"
+                                           :labelBackgroundColor "yellow"
+                                           :dashed true}))
+                          
+                          "Core" ;; cytoscape
+                          (cyto/add-edge!
+                           graph
+                           source-id
+                           target-id
+                           {:style {:content "tagged with"
+                                    :width 2
+                                    :line-color "green"
+                                    :line-style "dashed"
+                                    :target-arrow-color "green"}})))))))))))
