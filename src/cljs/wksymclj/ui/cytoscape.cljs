@@ -46,3 +46,16 @@
     (when (< 0 (aget matching-edges "length"))
       (.remove cyto-graph matching-edges)
       true)))
+
+(defn set-element-style! [cyto-element style-map]
+  (.style cyto-element (clj->js style-map)))
+
+(defn get-node [cyto-graph node-id]
+  (.elements cyto-graph (str "node[name=\"" node-id "\"]")))
+
+(defn get-edge [cyto-graph source-id target-id]
+  (.elements
+   cyto-graph
+   (str "edge"
+        "[source=\"" source-id "\"]"
+        "[target=\"" target-id "\"]")))

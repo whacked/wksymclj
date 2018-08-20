@@ -248,6 +248,13 @@
                        ";"))))
          (apply str head))))
 
+(defn set-style [graph cell style-map]
+  (-> graph
+      (.getModel)
+      (.setStyle
+       cell
+       (clj->mx-style style-map))))
+
 (defn get-cell-style-map [cell]
   (some-> (:_style cell)
           (mx-style->clj)))
