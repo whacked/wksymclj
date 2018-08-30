@@ -161,9 +161,9 @@
                          fname)]))
        (into {})))
 
-(defn load-node-content-to-element! [node-id element]
+(defn load-node-content-to-element! [db node-id element]
   (js/console.info "loading: " node-id "...")
-  (if-let [node-data (@file-db node-id)]
+  (if-let [node-data (db node-id)]
     (do
       (r/render
        [:div
@@ -181,10 +181,12 @@
     (js/console.warn (str "could not get data for: " node-id))))
 
 (defn setup-mxgraph!
-  [db graph-container-el render-output-el]
+  [db tiddlymap-pos-info
+   graph-container-el render-output-el]
   (comment
     (setup-mxgraph!
      @file-db
+     (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
      (gdom/getElement "panel-A")
      (gdom/getElement "panel-C")))
   
@@ -266,7 +268,7 @@
                                  (js/parseInt)
                                  (mx-id2name))]
           (load-node-content-to-element!
-           node-name render-output-el))
+           db node-name render-output-el))
         (.consume evt)))
 
     (defn mxgraph-handle-mouse-wheel [evt]
@@ -286,13 +288,19 @@
            "wheel" mxgraph-handle-mouse-wheel)))))
 
 (defn setup-cytograph!
-  [db graph-container-el render-output-el]
+  [db tiddlymap-pos-info
+   graph-container-el render-output-el]
   (comment
     (setup-cytograph!
      @file-db
+     (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
      (gdom/getElement "panel-A")
      (gdom/getElement "panel-C")))
-  (let [my-cytograph
+  
+  (let [filename->first-header
+        (get-file-name-to-first-header-mapping db)
+
+        my-cytograph
         (let [cyto-nodes (->> (file-db-to-flow-graph db)
                               (:node-list)
                               (map (fn [node]
@@ -336,7 +344,7 @@
              (let [node (aget evt "target")
                    node-id (js-invoke node "id")]
                (load-node-content-to-element!
-                node-id render-output-el)))))))
+                db node-id render-output-el)))))))
 
 (defn get-graph-type
   "`graph-object` is the output of setup-mxgraph! or setup-cytograph!
@@ -397,12 +405,6 @@
     (def file-db (atom {}))
     
     (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
-    
-    (def tiddlymap-pos-info
-      (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR))
-    
-    (def filename->first-header
-      (get-file-name-to-first-header-mapping @file-db))
 
     ;; (def my-mxgraph
     ;;   (setup-mxgraph!
@@ -413,6 +415,7 @@
     (def my-cytograph
       (setup-cytograph!
        @file-db
+       (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
        (gdom/getElement "panel-A")
        (gdom/getElement "panel-C")))
 
