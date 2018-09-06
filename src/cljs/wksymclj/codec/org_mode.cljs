@@ -5,6 +5,7 @@
   (:require-macros
    [com.rpl.specter :refer [select transform]]))
 
+
 (def $print-debug-to-console? true)
 (if $print-debug-to-console?
   (do
@@ -858,29 +859,31 @@
 (defn org->clj-ast
   "read an org string, convert it to unified AST,
    and convert that directly into edn"
-  [org-content]
-  (let [;; to-clj strips `parent` because it's a pointer
-        ;; to the parent node; this causes infinite loop
-        to-clj (fn to-clj [ast]
-                 (loop [remain (->> (.keys js/Object ast)
-                                    (array-seq)
-                                    (remove #{"parent"}))
-                        out {}]
-                   (if (empty? remain)
-                     out
-                     (let [k (first remain)
-                           data (if (= k "children")
-                                  (->> (aget ast k)
-                                       (map to-clj)
-                                       (vec))
-                                  (aget ast k))]
-                       (recur (rest remain)
-                              (assoc out
-                                     (keyword k)
-                                     (js->clj data)))))))]
-    (-> (new orga-parser)
-        (.parse org-content)
-        (to-clj))))
+  ([org-content]
+   (org->clj-ast org-content identity))
+  ([org-content preprocessor]
+   (let [;; to-clj strips `parent` because it's a pointer
+         ;; to the parent node; this causes infinite loop
+         to-clj (fn to-clj [ast]
+                  (loop [remain (->> (.keys js/Object ast)
+                                     (array-seq)
+                                     (remove #{"parent"}))
+                         out {}]
+                    (if (empty? remain)
+                      out
+                      (let [k (first remain)
+                            data (if (= k "children")
+                                   (->> (aget ast k)
+                                        (map to-clj)
+                                        (vec))
+                                   (aget ast k))]
+                        (recur (rest remain)
+                               (assoc out
+                                      (keyword k)
+                                      (js->clj data)))))))]
+     (-> (new orga-parser)
+         (.parse (preprocessor org-content))
+         (to-clj)))))
 
 (defn clj-ast->hast [clj-ast]
   (-> (unified-js)
@@ -940,13 +943,16 @@
       (aset this "Compiler" compiler))
     "fakeout!"))
 
-(defn orga-org->hiccup [org-content]
-  (-> (unified-js)
-      (.use orga-uni-parser)
-      (.use orga-uni-translator)
-      (.use hast-to-hiccupifier)
-      (.processSync org-content)
-      (aget "contents")))
+(defn orga-org->hiccup
+  ([org-content]
+   (orga-org->hiccup identity))
+  ([org-content preprocessor]
+   (-> (unified-js)
+       (.use orga-uni-parser)
+       (.use orga-uni-translator)
+       (.use hast-to-hiccupifier)
+       (.processSync (preprocessor org-content))
+       (aget "contents"))))
 
 (defn parse-drawer
   ;; this may get obviated if orga adds a native drawer parser
