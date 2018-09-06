@@ -175,14 +175,18 @@
          node-id]
         (-> node-data
             (:content)
-            (wk-org/orga-org->hiccup))]
+            (wk-org/orga-org->hiccup (fn [content]
+                                       ;; arbitrary preprocessor
+                                       content)))]
        element)
       (js/console.log "done: " node-id))
     (js/console.warn (str "could not get data for: " node-id))))
 
 (defn setup-mxgraph!
   [db tiddlymap-pos-info
-   graph-container-el render-output-el]
+   graph-container-el render-output-el
+   & {:keys [element-renderer]
+      :or {element-renderer load-node-content-to-element!}}]
   (comment
     (setup-mxgraph!
      @file-db
@@ -267,7 +271,7 @@
         (when-let [node-name (-> (aget cell "id")
                                  (js/parseInt)
                                  (mx-id2name))]
-          (load-node-content-to-element!
+          (element-renderer
            db node-name render-output-el))
         (.consume evt)))
 
@@ -289,7 +293,9 @@
 
 (defn setup-cytograph!
   [db tiddlymap-pos-info
-   graph-container-el render-output-el]
+   graph-container-el render-output-el
+   & {:keys [element-renderer]
+      :or {element-renderer load-node-content-to-element!}}]
   (comment
     (setup-cytograph!
      @file-db
@@ -343,7 +349,7 @@
            (fn [evt]
              (let [node (aget evt "target")
                    node-id (js-invoke node "id")]
-               (load-node-content-to-element!
+               (element-renderer
                 db node-id render-output-el)))))))
 
 (defn get-graph-type
