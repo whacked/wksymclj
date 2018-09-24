@@ -177,3 +177,14 @@
     {:mxGraphModel
      {:root
       {:mxCell (concat mx-cell-seq mx-edge-seq)}}}))
+
+(defn get-graph-type
+  "`graph-object` is the output of setup-mxgraph! or setup-cytograph!
+   which would bear the object signaturue of
+   `mxGraph` or ``"
+  [graph-object]
+  (comment (get-graph-type my-mxgraph))
+  (case (aget graph-object "constructor" "name")
+    "Core" :cytograph
+    "mxGraph" :mxgraph
+    nil))
