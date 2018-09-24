@@ -9,6 +9,7 @@
             [wksymclj.data-manipulation.graph :as grf]
             [wksymclj.ui.dagre :as dagre]
             [wksymclj.codec.graph :as graph-codec]
+            [wksymclj.codec.tiddlymap :as tiddlymap]
 
             [wksymclj.ui.mxgraph :as mx
              :refer [underscoreify-keys]]
@@ -91,16 +92,6 @@
                  (remove nil?)
                  (into {})
                  (reset! db-atom))))))
-
-(defn load-tiddlymap-position-info [tiddlers-dir]
-  (-> (fio/path-join
-       tiddlers-dir
-       "$__plugins_felixhayashi_tiddlymap_graph_views_all_map.tid")
-      (fio/simple-slurp)
-      (tw/parse-tid-content)
-      (:content)
-      (js/JSON.parse)
-      (js->clj)))
 
 ;; build the flow-graph
 (defn file-db-to-flow-graph
@@ -190,7 +181,7 @@
   (comment
     (setup-mxgraph!
      @file-db
-     (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
+     (tiddlymap/load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
      (gdom/getElement "panel-A")
      (gdom/getElement "panel-C")))
   
@@ -287,6 +278,12 @@
       (.addListener (aget mxEvent "CLICK")
                     (fn [sender evt]
                       (mxgraph-handle-click sender evt)))
+      (.addListener (aget mxEvent "MOVE_END")
+                    (fn [sender evt]
+                      (js/console.log "MOVE END")
+                      (js/console.info js/arguments)
+                      (js/console.log
+                       sender evt)))
       (-> (aget "container" "childNodes" 0)
           (.addEventListener
            "wheel" mxgraph-handle-mouse-wheel)))))
@@ -352,17 +349,6 @@
                (element-renderer
                 db node-id render-output-el)))))))
 
-(defn get-graph-type
-  "`graph-object` is the output of setup-mxgraph! or setup-cytograph!
-   which would bear the object signaturue of
-   `mxGraph` or ``"
-  [graph-object]
-  (comment (get-graph-type my-mxgraph))
-  (case (aget graph-object "constructor" "name")
-    "Core" :cytograph
-    "mxGraph" :mxgraph
-    nil))
-
 (defn render-tiddlywiki-tags-edges! [db graph-object]
   ;; add tiddlywiki tag edges
   (let [title-map (->> db
@@ -380,7 +366,7 @@
         (doseq [tag metadata-tags]
           (when-let [target-id (get title-map tag)]
             ;; (println (str source-id " --(" tag ")--> " target-id))
-            (case (get-graph-type graph-object)
+            (case (graph-codec/get-graph-type graph-object)
               :mxgraph
               (let [source-node (get-mx-node graph-object source-id)
                     target-node (get-mx-node graph-object target-id)]
