@@ -1,6 +1,5 @@
 (ns wksymclj.codec.cytoscape
-  (:require [goog.dom :as gdom]
-            [cljs.nodejs :as nodejs]
+  (:require [cljs.nodejs :as nodejs]
             [wksymclj.data-manipulation.graph :as grf]
             [cljs.spec.alpha :as spec]))
 
