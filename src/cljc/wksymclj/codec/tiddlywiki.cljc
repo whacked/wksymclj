@@ -32,6 +32,17 @@
   (clojure.string/split
    tid-content #"\r?\n\r?\n" 2))
 
+(defn render-tid-header [tid-header]
+  (->> tid-header
+       (map (fn [[k v]]
+              (str (name k)
+                   ": "
+                   (if (aget v "date")
+                     (date-to-tid-timestamp v)
+                     v))))
+       (interpose "\n")
+       (apply str)))
+
 (defn parse-tid-header [tid-content]
   (loop [remain (-> tid-content
                     (split-tid)
