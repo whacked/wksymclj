@@ -212,17 +212,20 @@
                                 (apply Math/min)
                                 (Math/abs)))
 
-              adj-x (get-adjust "x")
-              adj-y (get-adjust "y")
+              base-padding 10
+              adj-x (+ (get-adjust "x") base-padding)
+              adj-y (+ (get-adjust "y") base-padding)
               
               get-position-info (fn [node-name]
                                   (when-let [file-info (db node-name)]
                                     (let [tmap-id (get-in file-info [:metadata :tmap.id])]
                                       (tiddlymap-pos-info tmap-id))))]
+          
           (doto graph-container-el
             (browser/set-element-style!
              {:overflow "scroll"
-              :border "2px solid red"}))
+              :border "2px solid red"
+              }))
           
           (-> (dagre/make-dagre
                (:node-list my-flow-graph)
@@ -244,8 +247,8 @@
                          (assoc :_name node-name)
                          (assoc :_value
                                 (or override-label node-name))
-                         (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x 10))
-                         (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y 10)))
+                         (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x))
+                         (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y)))
                      ;; remove the initial dagre layout because we are forcibly
                      ;; repositioning the nodes, causing the edge positiongs to
                      ;; be incorrect
@@ -254,7 +257,12 @@
                        (update-in cell [:mxGeometry :Array]
                                   (fn [a]
                                     (dissoc a :mxPoint))))))))
-              (mx/render-mxgraph-data-to-element! graph-container-el)))]
+              (mx/render-mxgraph-data-to-element! graph-container-el)
+              (doto ((fn [mxgraph]
+                       ;; HACK -- store the adjustment into the graph object
+                       ;; for later conversion
+                       (aset mxgraph "x-offset" adj-x)
+                       (aset mxgraph "y-offset" adj-y))))))]
 
     (defn mxgraph-handle-click
       [sender evt]
