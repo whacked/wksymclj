@@ -373,6 +373,15 @@
                (element-renderer
                 db node-id render-output-el)))))))
 
+(defn get-tiddlymap-node-name-mapping [tiddler-db]
+  (->> tiddler-db
+       (map (fn [[node-name node-data]]
+              (if-let [tmap-id (get-in node-data [:metadata :tmap.id])]
+                [[node-name tmap-id]
+                 [tmap-id node-name]])))
+       (apply concat)
+       (into {})))
+
 (defn get-tiddlymap-positions-from-cytograph
   [tiddler-db cytograph]
   (->> (get-in

@@ -356,6 +356,20 @@
                       (zipmap ["x" "y"] <>))]))
          (into {}))))
 
+(defn get-mxgraph-node-id-mapping
+  "returns bijective map for mxgraph id <-> node name"
+  [graph]
+  (-<>> graph
+        (get-clj-from-mxgraph)
+        (get-in <> [:mxGraphModel :root :mxCell])
+        (filter (fn [cell]
+                  (= "1" (:_vertex cell))))
+        (map (fn [{:keys [_id _name]}]
+               [[_id _name]
+                [_name _id]]))
+        (apply concat)
+        (into {})))
+
 ;; (defn transform-cells [mx-graph cell-transformer]
 ;;   (transform
 ;;    [spct/MAP-VALS

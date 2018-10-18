@@ -13,6 +13,9 @@
    [swiss.arrows :refer [-<>>]]))
 
 
+(def $TIDDLYMAP-EDGE-UNKNOWN-TYPE "tmap:unknown")
+
+
 (defn get-tiddlymap-position-tiddlier-path
   [tiddlers-dir]
   (fio/path-join
@@ -74,6 +77,21 @@
                   :x (js/parseInt (:_x geom))
                   :y (js/parseInt (:_y geom))})))))
 
+(defn get-mxgraph-edge-info-for-tiddlymap [mxgraph-object]
+  (let [mxgraph-node-id-mapping
+        (mx/get-mxgraph-node-id-mapping mxgraph-object)]
+   (-<>> mxgraph-object
+         (mx/get-clj-from-mxgraph)
+         (get-in <> [:mxGraphModel :root :mxCell])
+         (filter (fn [cell]
+                   (= "1" (:_edge cell))))
+         (map (fn [{:keys [_source _target _value]}]
+                [(mxgraph-node-id-mapping _source)
+                 {:to (mxgraph-node-id-mapping _target)
+                  :type (or _value $TIDDLYMAP-EDGE-UNKNOWN-TYPE)}]))
+         (remove empty?)
+         (merge-with into))))
+
 (defn get-cytograph-node-position-info [cytograph-object]
   (->> cytograph-object
        (cyto-codec/cytoscape-graph-to-data)
@@ -85,3 +103,22 @@
                 ;; :name or :id?
                 (assoc (select-keys pos [:x :y])
                        :name (get-in node [:data :name])))))))
+
+(defn get-cytograph-edge-info-for-tiddlymap
+  "returns a map of
+   { node-name [ {:to target1 :type type1} {:to target2 :type target2} ... ] ...}
+   where :type defaults to \"tmap.unknown\" when not provided.
+   note that node-name will NOT be in a tmap uuid; you will have to
+   xref that in a separate step."
+  [cytograph]
+  (->> cytograph
+       (cyto-codec/cytoscape-graph-to-data)
+       (:elements)
+       (:edges)
+       (map (fn [cyto-edge]
+              (let [edge-data (get cyto-edge :data)]
+                {(:source edge-data)
+                 [{:to (:target edge-data)
+                   :type (:type edge-data $TIDDLYMAP-EDGE-UNKNOWN-TYPE)}]})))
+       (remove empty?)
+       (merge-with into)))
