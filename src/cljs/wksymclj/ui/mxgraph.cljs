@@ -330,6 +330,32 @@
       (get-js-from-mxgraph)
       (js->clj :keywordize-keys true)))
 
+(defn get-mxgraph-node-positions
+  "given a js mx-graph object, return a map of
+   {node-name1 {x 123 y 456} ...}
+   the format is prepared for consumption into tiddlymap.
+   Note the coordinates are in mx-graph space, which may
+   need to be transformed into tiddlymap space.
+  "
+  [mx-graph]
+  (let [nodes (->> mx-graph
+                   (get-clj-from-mxgraph)
+                   (spct/select
+                    [:mxGraphModel
+                     :root
+                     :mxCell
+                     spct/ALL])
+                   (filter :_name)
+                   (filter :mxGeometry))]
+    (->> nodes
+         (map (fn [node]
+                [(:_name node)
+                 (-<> (get-in node [:mxGeometry])
+                      (map [:_x :_y])
+                      (map js/parseInt <>)
+                      (zipmap ["x" "y"] <>))]))
+         (into {}))))
+
 ;; (defn transform-cells [mx-graph cell-transformer]
 ;;   (transform
 ;;    [spct/MAP-VALS
