@@ -13,6 +13,8 @@
    [swiss.arrows :refer [-<>>]]))
 
 
+(def uuidv4 (nodejs/require "uuid/v4"))
+
 (def $TIDDLYMAP-EDGE-UNKNOWN-TYPE "tmap:unknown")
 
 
@@ -122,3 +124,59 @@
                    :type (:type edge-data $TIDDLYMAP-EDGE-UNKNOWN-TYPE)}]})))
        (remove empty?)
        (merge-with into)))
+
+(defn get-existing-tiddlymap-edge
+  "given a parsed tid datastructure
+   (see wksymclj.codec.tiddlywiki/parse-tid-content),
+   look for an edge with matching :to and :type.
+
+   if an id mapper is found, use it to derive the tmap id (uuid);
+   else assume the ids are valid as given."
+  ([parsed-tid target-edge-info]
+   (get-existing-tiddlymap-edge
+    parsed-tid target-edge-info identity))
+  ([parsed-tid target-edge-info id-mapper]
+   (-<>> (get-in parsed-tid [:header :tmap.edges])
+         (filter (fn [[tmap-edge-id edge-info]]
+                   (and (= (get edge-info "to")
+                           (id-mapper (:to target-edge-info)))
+                        (= (get edge-info "type")
+                           (:type target-edge-info)))))
+         (first))))
+
+(defn update-tiddlymap-edges-for-tiddler
+  "given a parsed tid datastructure
+   (see wksymclj.codec.tiddlywiki/parse-tid-content)
+
+   if an existing :to and :type is found, do nothing;
+   else add a new edge to the tmap.edges data, returning
+   the updated tiddler structure"
+  ([parsed-tid new-edge-info]
+   (update-tiddlymap-edges-for-tiddler
+    parsed-tid new-edge-info identity))
+  ([parsed-tid new-edge-info id-mapper]
+
+   (comment
+     ;; count will increase if new edge;
+     ;; else it will stay the same
+     (-> (update-tiddlymap-edges-for-tiddler
+          (tw/parse-tid-content tw-string)
+          {:type "tmap:unknown"
+           :to "new-tiddler.tid"}
+          {"new-tiddler.tid" "some-random-uuid4"})
+         (get-in [:header :tmap.edges])
+         (count)))
+   
+   (if-let [match (get-existing-tiddlymap-edge
+                   parsed-tid new-edge-info id-mapper)]
+     ;; existing match found with id (first match)
+     parsed-tid
+     ;; create new edge using uuidv4
+     (let [new-edge-id (uuidv4)]
+       (update-in parsed-tid
+                  [:header :tmap.edges]
+                  (fn [current-edges]
+                    (assoc current-edges
+                           new-edge-id
+                           {"to" (id-mapper (:to new-edge-info))
+                            "type" (:type new-edge-info)})))))))
