@@ -2,6 +2,7 @@
   (:require [cuerdas.core :as cstr]
             [clojure.string]
             [wksymclj.data-manipulation.simple-json :as json]
+            #?(:clj [clojure.data :as json])
             #?(:clj [clj-time.core :as time])
             #?(:clj [clj-time.format :as tfmt])
             #?(:cljs [cljs-time.core :as time])
@@ -32,14 +33,25 @@
   (clojure.string/split
    tid-content #"\r?\n\r?\n" 2))
 
+(defn map-to-json [m]
+  #?(:clj
+     (json/write-str m))
+  #?(:cljs
+     (->> (clj->js m)
+          (.stringify js/JSON))))
+
 (defn render-tid-header [tid-header]
   (->> tid-header
        (map (fn [[k v]]
               (str (name k)
                    ": "
-                   (if (aget v "date")
-                     (date-to-tid-timestamp v)
-                     v))))
+                   (cond (aget v "date")
+                         (date-to-tid-timestamp v)
+
+                         (map? v)
+                         (map-to-json v)
+                         
+                         :else v))))
        (interpose "\n")
        (apply str)))
 
