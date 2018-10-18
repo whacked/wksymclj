@@ -31,7 +31,8 @@
                :target-label \"at the target\"}})"
   [cyto-graph source-id target-id & [extra-data]]
   (.add cyto-graph
-        (clj->js {:edges [(merge
+        (clj->js {:edges [(merge-with
+                           merge
                            {:data {:source source-id
                                    :target target-id}}
                            extra-data)]})))

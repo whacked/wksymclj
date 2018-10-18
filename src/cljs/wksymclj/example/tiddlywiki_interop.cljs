@@ -420,7 +420,8 @@
                graph-object
                source-id
                target-id
-               {:style {:content "tagged with"
+               {:data {:type "tagged with"}
+                :style {:content "tagged with"
                         :width 2
                         :line-color "green"
                         :line-style "dashed"
