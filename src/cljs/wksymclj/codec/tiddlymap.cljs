@@ -190,3 +190,27 @@
                            new-edge-id
                            {"to" (id-mapper (:to new-edge-info))
                             "type" (:type new-edge-info)})))))))
+
+(defn get-edge-type-filepath [tiddlers-dir edge-type-name]
+  (->> (str $TIDDLYMAP-EDGETYPES-FILE-PREFIX
+            edge-type-name
+            ".tid")
+       (fio/path-join tiddlers-dir)))
+
+(defn edge-type-exists? [tiddlers-dir edge-type-name]
+  (-> (get-edge-type-filepath
+       tiddlers-dir edge-type-name)
+      (fio/path-exists?)))
+
+(defn add-tiddlymap-edge-type! [tiddlers-dir edge-type-name]
+  (let [edgetype-tid-path (get-edge-type-filepath
+                           tiddlers-dir edge-type-name)
+        now (time/now)]
+    (->> {:header
+          {:created now,
+           :modified now,
+           :title (str $TIDDLYMAP-EDGETYPES-INTERNAL-PREFIX
+                       "/" edge-type-name)
+           :content ""}}
+         (tw/render-tid)
+         (fio/simple-spit edgetype-tid-path))))
