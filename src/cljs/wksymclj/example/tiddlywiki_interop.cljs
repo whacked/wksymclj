@@ -189,7 +189,8 @@
          (into {}))))
 
 (defn setup-mxgraph!
-  [db tiddlymap-pos-info
+  [tiddlers-dir
+   db tiddlymap-pos-info
    graph-container-el render-output-el
    & {:keys [element-renderer]
       :or {element-renderer load-node-content-to-element!}}]
@@ -304,12 +305,15 @@
       (.addListener (aget mxEvent "CLICK")
                     (fn [sender evt]
                       (mxgraph-handle-click sender evt)))
-      (.addListener (aget mxEvent "MOVE_END")
+      (.addListener (aget mxEvent "CELLS_MOVED")
                     (fn [sender evt]
-                      (js/console.log "MOVE END")
-                      (js/console.info js/arguments)
-                      (js/console.log
-                       sender evt)))
+                      ;; sender is the mxGraph object
+                      (let [cell (aget evt "properties" "cells" 0)]
+                        (when (mx/is-vertex? cell)
+                          (->> (get-tiddlymap-positions-from-mxgraph
+                                db my-mxgraph)
+                               (tiddlymap/save-tiddlymap-position-info
+                                tiddlers-dir))))))
       (-> (aget "container" "childNodes" 0)
           (.addEventListener
            "wheel" mxgraph-handle-mouse-wheel)))))
@@ -328,7 +332,8 @@
        (into {})))
 
 (defn setup-cytograph!
-  [db tiddlymap-pos-info
+  [tiddlers-dir
+   db tiddlymap-pos-info
    graph-container-el render-output-el
    & {:keys [element-renderer]
       :or {element-renderer load-node-content-to-element!}}]
@@ -382,15 +387,31 @@
                      {:selector "edge"
                       :style {:curve-style "bezier"
                               :target-arrow-shape "triangle"}}]
-             })))]
+             })))
+
+        dragging-node (atom nil)
+        ]
     (doto my-cytograph
       (.on "tap" "node"
            (fn [evt]
              (let [node (aget evt "target")
                    node-id (js-invoke node "id")]
                (element-renderer
-                db node-id render-output-el)))))))
+                db node-id render-output-el))))
+      
+      (.on "position"
+           (fn [evt]
+             (reset! dragging-node (aget evt "target"))))
 
+      (.on "free"
+           (fn [evt]
+             (when @dragging-node
+               (let [node @dragging-node]
+                 (->> (get-tiddlymap-positions-from-cytograph
+                       db my-cytograph)
+                      (tiddlymap/save-tiddlymap-position-info
+                       tiddlers-dir))))
+             (reset! dragging-node nil))))))
 
 (defn render-tiddlywiki-tags-edges! [db graph-object]
 
@@ -443,7 +464,7 @@
   ([tiddlers-dir tiddler-path parsed-tid]
    (save-tiddler!
     (fio/path-join
-     tiddlers-dir tiddler-path parsed-tid)))
+     tiddlers-dir tiddler-path) parsed-tid))
   ([tiddler-path parsed-tid]
    (->> parsed-tid
         (tw/render-tid)
