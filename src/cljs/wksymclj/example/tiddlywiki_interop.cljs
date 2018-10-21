@@ -174,6 +174,43 @@
     (js/console.warn (str "could not get data for: " node-id))))
 
 
+(def $base-tiddlymap-status-display
+  {:auto-save-on-node-position-change? true
+   :status-message "initialized"})
+
+(defn render-tiddlymap-status-display!
+  [status-ratom
+   status-display-el]
+  (->> status-display-el
+       (r/render
+        [(fn []
+           [:div
+            {:style
+             {:width "100%"}}
+            [:div
+             [:input
+              {:type "checkbox"
+               :checked (get-in @status-ratom [:auto-save-on-node-position-change?])
+               :on-change (fn []
+                            (swap! status-ratom
+                                   update :auto-save-on-node-position-change? not))}]
+             "auto save on move node"]
+            [:div
+             {:style {:width "100%"
+                      :line-height "1em"
+                      :border "1px solid black"
+                      :border-left "none"
+                      :border-right "none"}}
+             [:span
+              {:style {:background "gray"
+                       :color "white"
+                       :font-size "small"
+                       :padding-right "0.2em"
+                       :margin "0 0.2em 0 0"}}
+              "status"]
+             [:code
+              (get-in @status-ratom [:status-message])]]])])))
+
 (defn get-tiddlymap-positions-from-mxgraph
   [tiddler-db mxgraph]
   (let [x-offset (aget mxgraph "x-offset")
@@ -191,7 +228,9 @@
 (defn setup-mxgraph!
   [tiddlers-dir
    db tiddlymap-pos-info
-   graph-container-el render-output-el
+   graph-container-el
+   render-output-el
+   status-display-el
    & {:keys [element-renderer]
       :or {element-renderer load-node-content-to-element!}}]
   (comment
@@ -204,7 +243,9 @@
      (gdom/getElement "panel-A")
      (gdom/getElement "panel-C")))
   
-  (let [my-flow-graph
+  (let [status-display-state (r/atom $base-tiddlymap-status-display)
+        
+        my-flow-graph
         (-> (file-db-to-flow-graph db)
             (update :node-list
                     (fn [node-list]
@@ -310,13 +351,22 @@
                       ;; sender is the mxGraph object
                       (let [cell (aget evt "properties" "cells" 0)]
                         (when (mx/is-vertex? cell)
-                          (->> (get-tiddlymap-positions-from-mxgraph
-                                db my-mxgraph)
-                               (tiddlymap/save-tiddlymap-position-info
-                                tiddlers-dir))))))
+                          (when (@status-display-state
+                                 :auto-save-on-node-position-change?)
+                            (->> (get-tiddlymap-positions-from-mxgraph
+                                  db my-mxgraph)
+                                 (tiddlymap/save-tiddlymap-position-info
+                                  tiddlers-dir))
+                            (swap! status-display-state
+                                   assoc :status-message
+                                   "saved positions"))))))
       (-> (aget "container" "childNodes" 0)
           (.addEventListener
-           "wheel" mxgraph-handle-mouse-wheel)))))
+           "wheel" mxgraph-handle-mouse-wheel)))
+    
+    (render-tiddlymap-status-display!
+     status-display-state
+     status-display-el)))
 
 (defn get-tiddlymap-positions-from-cytograph
   [tiddler-db cytograph]
@@ -334,7 +384,9 @@
 (defn setup-cytograph!
   [tiddlers-dir
    db tiddlymap-pos-info
-   graph-container-el render-output-el
+   graph-container-el
+   render-output-el
+   status-display-el
    & {:keys [element-renderer]
       :or {element-renderer load-node-content-to-element!}}]
   (comment
@@ -347,7 +399,9 @@
      (gdom/getElement "panel-A")
      (gdom/getElement "panel-C")))
   
-  (let [filename->first-header
+  (let [status-display-state (r/atom $base-tiddlymap-status-display)
+
+        filename->first-header
         (get-file-name-to-first-header-mapping db)
 
         my-cytograph
@@ -407,11 +461,20 @@
            (fn [evt]
              (when @dragging-node
                (let [node @dragging-node]
-                 (->> (get-tiddlymap-positions-from-cytograph
-                       db my-cytograph)
-                      (tiddlymap/save-tiddlymap-position-info
-                       tiddlers-dir))))
-             (reset! dragging-node nil))))))
+                 (when (@status-display-state
+                        :auto-save-on-node-position-change?)
+                   (->> (get-tiddlymap-positions-from-cytograph
+                         db my-cytograph)
+                        (tiddlymap/save-tiddlymap-position-info
+                         tiddlers-dir))
+                   (swap! status-display-state
+                          assoc :status-message
+                          "saved positions"))))
+             (reset! dragging-node nil))))
+
+    (render-tiddlymap-status-display!
+     status-display-state
+     status-display-el)))
 
 (defn render-tiddlywiki-tags-edges! [db graph-object]
 
