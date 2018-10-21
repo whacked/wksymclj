@@ -436,6 +436,17 @@
                         :line-style "dashed"
                         :target-arrow-color "green"}}))))))))
 
+(defn save-tiddler!
+  "trinary takes tiddler-dir, relpath, and data;
+   binary takes abspath to tiddler, and data"
+  ([tiddlers-dir tiddler-path parsed-tid]
+   (save-tiddler!
+    (fio/path-join
+     tiddlers-dir tiddler-path parsed-tid)))
+  ([tiddler-path parsed-tid]
+   (->> parsed-tid
+        (tw/render-tid)
+        (fio/simple-spit tiddler-path))))
 (comment
   (do
     
