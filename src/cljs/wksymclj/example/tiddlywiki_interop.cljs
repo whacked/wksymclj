@@ -433,7 +433,7 @@
                                  (clojure.string/split #"\s+"))]
         (doseq [tag metadata-tags]
           (when-let [target-id (get title-map tag)]
-            ;; (println (str source-id " --(" tag ")--> " target-id))
+            ;; (str source-id " --(" tag ")--> " target-id)
             (case (graph-codec/get-graph-type graph-object)
               :mxgraph
               (let [source-node (get-mx-node graph-object source-id)
@@ -479,3 +479,262 @@
        (apply concat)
        (into {})))
 
+(defn setup-graph-tiddlymap-edge-editor!
+  [tiddlers-dir graph-object tiddler-db-atom target-el]
+  
+  (defrecord EdgeActionStatus
+      [source-node-name target-node-name
+       edge-type-current edge-type-input])
+  (def selected-edges (r/atom {}))
+
+  (defn mxgraph-detect-edge-ready-selection [mx-graph]
+    (reset! selected-edges {})
+    (let [maybe-selection
+          (-> mx-graph
+              (.getSelectionCells)
+              (array-seq))]
+      (cond (and (= 1 (count maybe-selection))
+                 (some-> maybe-selection
+                         (first)
+                         (aget "edge")))
+            (let [edge-data (first maybe-selection)
+                  source (aget edge-data "source")
+                  target (aget edge-data "target")
+                  source-id (aget source "name")
+                  target-id (aget target "name")]
+              (swap! selected-edges
+                     assoc
+                     [source-id target-id]
+                     (EdgeActionStatus.
+                      source-id target-id
+                      (aget edge-data "value")
+                      nil)))
+
+            (= 2 (count maybe-selection))
+            (let [source (first maybe-selection)
+                  target (second maybe-selection)
+                  source-id (aget source "name")
+                  target-id (aget target "name")]
+              (swap! selected-edges
+                     assoc
+                     [source-id target-id]
+                     (EdgeActionStatus.
+                      source-id target-id
+                      (if-let [existing-edge
+                               (mx/get-matching-edge
+                                mx-graph
+                                (aget source "value")
+                                (aget target "value"))]
+                        (aget existing-edge "value")
+                        nil)
+                      nil))))))
+  
+  (defn setup-mxgraph-detect-edge-selection! [mx-graph]
+    (.addListener
+     mx-graph
+     (aget mxEvent "CLICK")
+     (fn [sender evt]
+       (mxgraph-detect-edge-ready-selection mx-graph))))
+
+  (defn cytograph-detect-edge-ready-selection [cytograph]
+    (reset! selected-edges {})
+    (let [maybe-selection
+          (-> cytograph
+              (js-invoke "$" ":selected"))]
+      (cond (and (= 1 (aget maybe-selection "length"))
+                 (= (aget maybe-selection 0 "_private" "group")
+                    "edges"))
+            ;; 1 edge selected
+            (let  [edge-data (aget maybe-selection 0 "_private" "data")
+                   source-id (aget edge-data "source")
+                   target-id (aget edge-data "target")]
+              (swap! selected-edges
+                     assoc
+                     [source-id target-id]
+                     (EdgeActionStatus.
+                      source-id target-id
+                      (or (aget edge-data "type")
+                          tiddlymap/$TIDDLYMAP-EDGE-UNKNOWN-TYPE)
+                      nil)))
+            
+            (= 2 (aget maybe-selection "length"))
+            ;; 2 nodes selected
+            (doseq [[i-first i-second]
+                    [[0 1]
+                     [1 0]]]
+              (let [source-id (aget maybe-selection i-first
+                                    "_private" "data" "id")
+                    target-id (aget maybe-selection i-second
+                                    "_private" "data" "id")
+                    maybe-edge (cyto/get-edge cytograph source-id target-id)]
+                (swap! selected-edges
+                       assoc
+                       [source-id target-id]
+                       (EdgeActionStatus.
+                        source-id target-id
+                        (if (= 1 (aget maybe-edge "length"))
+                          (aget maybe-edge 0
+                                "_private" "data" "type")
+                          nil)
+                        nil))))
+
+            :else
+            (do
+              (js/oldconsole.log maybe-selection)))))
+  
+  (defn setup-cytograph-detect-edge-selection! [cytograph]
+    (doto cytograph
+      (.on "select"
+           (fn [_evt]
+             (cytograph-detect-edge-ready-selection cytograph)))
+      (.on "unselect"
+           (fn [_evt]
+             (reset! selected-edges {})))))
+
+  (case (graph-codec/get-graph-type graph-object)
+    :cytograph
+    (setup-cytograph-detect-edge-selection! graph-object)
+    
+    :mxgraph
+    (setup-mxgraph-detect-edge-selection! graph-object))
+
+  (let [tiddlymap-node-name-mapping
+        (get-tiddlymap-node-name-mapping
+         @tiddler-db-atom)]
+    (->> target-el
+         (r/render
+          [(fn []
+             [:div
+              {:style {:width "100%"
+                       :border "1px solid red"}}
+              (->> (keys @selected-edges)
+                   (map
+                    (fn [[source-id target-id]]
+                      (let [link-action-status
+                            (r/cursor selected-edges
+                                      [[source-id target-id]])]
+                        [:div
+                         [:div
+                          {:style {:display "flex"}}
+                          [:div
+                           {:style {:flex 1}}
+                           (if-let [source-node-name
+                                    (:source-node-name @link-action-status)]
+                             [:div
+                              [:div
+                               source-node-name]
+                              [:div
+                               {:style {:font-size "x-small"}}
+                               (tiddlymap-node-name-mapping source-node-name)]]
+                             "choose source node")]
+                          [:div
+                           {:style {:flex 1}}
+                           [:div
+                            [:input
+                             {:type "text"
+                              :value (:edge-type-input @link-action-status)
+                              :on-change (fn [evt]
+                                           (swap!
+                                            link-action-status
+                                            assoc
+                                            :edge-type-input
+                                            (aget evt "target" "value")))}]]
+                           (if-let [cur-type (:edge-type-current @link-action-status)]
+                             [:div {:style {:border "1px solid blue"}}
+                              cur-type]
+                             [:div])]
+                          [:div
+                           {:style {:flex 1}}
+                           (if-let [target-node-name
+                                    (:target-node-name @link-action-status)]
+                             [:div
+                              [:div
+                               target-node-name]
+                              [:div
+                               {:style {:font-size "x-small"}}
+                               (tiddlymap-node-name-mapping target-node-name)]]
+                             "choose target node")]]
+                         [:div
+                          (when (:edge-type-input @link-action-status)
+                            [:button
+                             {:type "button"
+                              :on-click (fn [_evt]
+                                          (let [edge-type (:edge-type-input @link-action-status)]
+                                            (case (graph-codec/get-graph-type graph-object)
+                                              :mxgraph
+                                              (mx/add-edge! graph-object
+                                                            (mx/get-matching-node
+                                                             graph-object {:name source-id})
+                                                            (mx/get-matching-node
+                                                             graph-object {:name target-id})
+                                                            edge-type)
+
+                                              :cytograph
+                                              (cyto/add-edge! graph-object
+                                                              source-id
+                                                              target-id
+                                                              {:data
+                                                               {:type edge-type}
+                                                               :style {:content edge-type}}))
+                                            (let [tmap-target-id (tiddlymap-node-name-mapping target-id)
+                                                  source-tid-path (-> (@tiddler-db-atom source-id)
+                                                                      (:path))
+                                                  source-parsed-tid (-> source-tid-path
+                                                                        (fio/simple-slurp)
+                                                                        (tw/parse-tid-content))]
+                                              (when-not (tiddlymap/edge-type-exists?
+                                                         tiddlers-dir edge-type)
+                                                (tiddlymap/add-tiddlymap-edge-type!
+                                                 tiddlers-dir edge-type))
+                                              (->> (tiddlymap/update-tiddlymap-edges-for-tiddler
+                                                    source-parsed-tid
+                                                    {:type edge-type
+                                                     :to tmap-target-id})
+                                                   (save-tiddler!
+                                                    source-tid-path))
+                                              (swap! tiddler-db-atom assoc
+                                                     source-id (load-file-info source-tid-path)))))}
+                             "add"])
+                          (when (:edge-type-current @link-action-status)
+                            [:button
+                             {:type "button"
+                              :on-click (fn [_evt]
+                                          (case (graph-codec/get-graph-type graph-object)
+                                            :mxgraph
+                                            (mx/remove-edge! graph-object
+                                                             (aget
+                                                              (mx/get-matching-node
+                                                               graph-object {:name source-id})
+                                                              "value")
+                                                             (aget
+                                                              (mx/get-matching-node
+                                                               graph-object {:name target-id})
+                                                              "value"))
+                                          
+                                            :cytograph
+                                            (cyto/remove-edge! graph-object source-id target-id))
+                                         
+                                          (let [tmap-target-id (tiddlymap-node-name-mapping target-id)
+                                                source-tid-path (-> (@tiddler-db-atom source-id)
+                                                                    (:path))
+                                                source-parsed-tid (-> source-tid-path
+                                                                      (fio/simple-slurp)
+                                                                      (tw/parse-tid-content))]
+                                            (if-let [existing-edge-id
+                                                     (some-> (tiddlymap/get-existing-tiddlymap-edge
+                                                              source-parsed-tid
+                                                              {:type (:edge-type-current @link-action-status)
+                                                               :to tmap-target-id})
+                                                             (first))]
+                                              (do
+                                                (->> (update-in
+                                                      source-parsed-tid
+                                                      [:header :tmap.edges]
+                                                      (fn [tmap-edges]
+                                                        (dissoc tmap-edges existing-edge-id)))
+                                                     (save-tiddler! source-tid-path))
+                                                (swap! tiddler-db-atom assoc
+                                                       source-id (load-file-info source-tid-path)))
+                                              (println "WARNING: NO EDGE FOUND FOR"
+                                                       [source-id target-id]))))}
+                             "delete"])]]))))])]))))
