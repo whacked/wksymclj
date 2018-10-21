@@ -147,9 +147,11 @@
    (-<>> (get-in parsed-tid [:header :tmap.edges])
          (filter (fn [[tmap-edge-id edge-info]]
                    (and (= (get edge-info "to")
-                           (id-mapper (:to target-edge-info)))
+                           (id-mapper (or (:to target-edge-info)
+                                          (target-edge-info "to"))))
                         (= (get edge-info "type")
-                           (:type target-edge-info)))))
+                           (or (:type target-edge-info)
+                               (target-edge-info "type"))))))
          (first))))
 
 (defn update-tiddlymap-edges-for-tiddler
