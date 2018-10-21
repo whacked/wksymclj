@@ -16,13 +16,18 @@
 (def uuidv4 (nodejs/require "uuid/v4"))
 
 (def $TIDDLYMAP-EDGE-UNKNOWN-TYPE "tmap:unknown")
-
+(def $TIDDLYMAP-FILE-PREFIX "$__plugins_felixhayashi_tiddlymap_")
+(def $TIDDLYMAP-EDGETYPES-FILE-PREFIX
+  (str $TIDDLYMAP-FILE-PREFIX "graph_edgeTypes_"))
+(def $TIDDLYMAP-EDGETYPES-INTERNAL-PREFIX
+  "$:/plugins/felixhayashi/tiddlymap/graph/edgeTypes")
 
 (defn get-tiddlymap-position-tiddlier-path
   [tiddlers-dir]
   (fio/path-join
    tiddlers-dir
-   "$__plugins_felixhayashi_tiddlymap_graph_views_all_map.tid"))
+   (str $TIDDLYMAP-FILE-PREFIX
+        "graph_views_all_map.tid")))
 
 (defn load-tiddlymap-position-info [tiddlers-dir]
   (-> tiddlers-dir
@@ -129,6 +134,9 @@
   "given a parsed tid datastructure
    (see wksymclj.codec.tiddlywiki/parse-tid-content),
    look for an edge with matching :to and :type.
+
+   target-edge-info is the same data that is used for :tmap.edges, e.g.
+   {:type \"tmap:unknown\" :to \"blah.tid\"}
 
    if an id mapper is found, use it to derive the tmap id (uuid);
    else assume the ids are valid as given."
