@@ -364,7 +364,9 @@
                                   tiddlers-dir))
                             (swap! status-display-state
                                    assoc :status-message
-                                   "saved positions"))))))
+                                   (str
+                                    (js/Date.)
+                                    " saved positions")))))))
       (-> (aget "container" "childNodes" 0)
           (.addEventListener
            "wheel" mxgraph-handle-mouse-wheel)))))
@@ -475,7 +477,9 @@
                          tiddlers-dir))
                    (swap! status-display-state
                           assoc :status-message
-                          "saved positions"))))
+                          (str
+                           (js/Date.)
+                           " saved positions")))))
              (reset! dragging-node nil))))))
 
 (defn render-tiddlywiki-tags-edges! [db graph-object]
