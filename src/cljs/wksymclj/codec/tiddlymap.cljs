@@ -71,19 +71,6 @@
           (clj->js)
           (js/JSON.stringify nil 2))))))
 
-;; TODO: correct x y offsets for these outputs
-(defn get-mxgraph-vertex-position-info [mxgraph-object]
-  (-<>> mxgraph-object
-        (mx/get-clj-from-mxgraph)
-        (get-in <> [:mxGraphModel :root :mxCell])
-        (filter (fn [cell]
-                  (= "1" (:_vertex cell))))
-        (map (fn [cell]
-               (let [geom (:mxGeometry cell)]
-                 {:name (:_name cell)
-                  :x (js/parseInt (:_x geom))
-                  :y (js/parseInt (:_y geom))})))))
-
 (defn get-mxgraph-edge-info-for-tiddlymap [mxgraph-object]
   (let [mxgraph-node-id-mapping
         (mx/get-mxgraph-node-id-mapping mxgraph-object)]
@@ -98,18 +85,6 @@
                   :type (or _value $TIDDLYMAP-EDGE-UNKNOWN-TYPE)}]))
          (remove empty?)
          (merge-with into))))
-
-(defn get-cytograph-node-position-info [cytograph-object]
-  (->> cytograph-object
-       (cyto-codec/cytoscape-graph-to-data)
-       (:elements)
-       (:nodes)
-       (map (fn [node]
-              (println node)
-              (let [pos (:position node)]
-                ;; :name or :id?
-                (assoc (select-keys pos [:x :y])
-                       :name (get-in node [:data :name])))))))
 
 (defn get-cytograph-edge-info-for-tiddlymap
   "returns a map of
