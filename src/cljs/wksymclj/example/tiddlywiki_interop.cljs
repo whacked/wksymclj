@@ -179,6 +179,9 @@
    & {:keys [element-renderer]
       :or {element-renderer load-node-content-to-element!}}]
   (comment
+    (def $TIDDLYWIKI-TIDDLERS-DIR "/tmp/tiddlers")
+    (def file-db (atom {}))
+    (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
     (setup-mxgraph!
      @file-db
      (tiddlymap/load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
@@ -318,6 +321,9 @@
    & {:keys [element-renderer]
       :or {element-renderer load-node-content-to-element!}}]
   (comment
+    (def $TIDDLYWIKI-TIDDLERS-DIR "/tmp/tiddlers")
+    (def file-db (atom {}))
+    (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
     (setup-cytograph!
      @file-db
      (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
@@ -396,6 +402,10 @@
        (into {})))
 
 (defn render-tiddlywiki-tags-edges! [db graph-object]
+
+  (comment
+    (render-tiddlywiki-tags-edges! @file-db my-cytograph))
+  
   ;; add tiddlywiki tag edges
   (let [title-map (->> db
                        (map (fn [[k m]]
@@ -447,26 +457,4 @@
    (->> parsed-tid
         (tw/render-tid)
         (fio/simple-spit tiddler-path))))
-(comment
-  (do
-    
-    (def $TIDDLYWIKI-TIDDLERS-DIR "/tmp/tiddlers")
-    
-    (def file-db (atom {}))
-    
-    (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
 
-    ;; (def my-mxgraph
-    ;;   (setup-mxgraph!
-    ;;    @file-db
-    ;;    (gdom/getElement "panel-A")
-    ;;    (gdom/getElement "panel-C")))
-
-    (def my-cytograph
-      (setup-cytograph!
-       @file-db
-       (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
-       (gdom/getElement "panel-A")
-       (gdom/getElement "panel-C")))
-
-    (render-tiddlywiki-tags-edges! @file-db my-cytograph)))
