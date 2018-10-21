@@ -340,6 +340,11 @@
         (.zoomOut my-mxgraph))
       (.preventDefault evt))
 
+    
+    (render-tiddlymap-status-display!
+     status-display-state
+     status-display-el)
+    
     (doto my-mxgraph
       (.setPanning true)
       (aset "panningHandler" "useLeftButtonForPanning" true)
@@ -362,11 +367,7 @@
                                    "saved positions"))))))
       (-> (aget "container" "childNodes" 0)
           (.addEventListener
-           "wheel" mxgraph-handle-mouse-wheel)))
-    
-    (render-tiddlymap-status-display!
-     status-display-state
-     status-display-el)))
+           "wheel" mxgraph-handle-mouse-wheel)))))
 
 (defn get-tiddlymap-positions-from-cytograph
   [tiddler-db cytograph]
@@ -445,6 +446,11 @@
 
         dragging-node (atom nil)
         ]
+    
+    (render-tiddlymap-status-display!
+     status-display-state
+     status-display-el)
+    
     (doto my-cytograph
       (.on "tap" "node"
            (fn [evt]
@@ -470,11 +476,7 @@
                    (swap! status-display-state
                           assoc :status-message
                           "saved positions"))))
-             (reset! dragging-node nil))))
-
-    (render-tiddlymap-status-display!
-     status-display-state
-     status-display-el)))
+             (reset! dragging-node nil))))))
 
 (defn render-tiddlywiki-tags-edges! [db graph-object]
 
