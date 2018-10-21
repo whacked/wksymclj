@@ -173,6 +173,21 @@
       (js/console.log "done: " node-id))
     (js/console.warn (str "could not get data for: " node-id))))
 
+
+(defn get-tiddlymap-positions-from-mxgraph
+  [tiddler-db mxgraph]
+  (let [x-offset (aget mxgraph "x-offset")
+        y-offset (aget mxgraph "y-offset")]
+    (->> (mx/get-mxgraph-node-positions mxgraph)
+         (map (fn [[node-name pos]]
+                [(get-in tiddler-db
+                         [node-name :metadata :tmap.id])
+                 {"x" (- (get pos "x")
+                         x-offset)
+                  "y" (- (get pos "y")
+                         y-offset)}]))
+         (into {}))))
+
 (defn setup-mxgraph!
   [db tiddlymap-pos-info
    graph-container-el render-output-el
@@ -299,21 +314,18 @@
           (.addEventListener
            "wheel" mxgraph-handle-mouse-wheel)))))
 
-(defn get-tiddlymap-positions-from-mxgraph
-  [tiddler-db mxgraph]
-  (let [x-offset (aget mxgraph "x-offset")
-        y-offset (aget mxgraph "y-offset")]
-    (->> (mx/get-mxgraph-node-positions mxgraph)
-         (map (fn [[node-name pos]]
+(defn get-tiddlymap-positions-from-cytograph
+  [tiddler-db cytograph]
+  (->> (get-in
+        (cyto-codec/cytoscape-graph-to-data cytograph)
+        [:elements :nodes])
+       (map (fn [node]
+              (let [node-name (get-in node [:data :id])]
                 [(get-in tiddler-db
-                         [node-name
-                          :metadata
-                          :tmap.id])
-                 {"x" (- (get pos "x")
-                         x-offset)
-                  "y" (- (get pos "y")
-                         y-offset)}]))
-         (into {}))))
+                         [node-name :metadata :tmap.id])
+                 (:position node)])))
+       (remove (fn [[k _]] (nil? k)))
+       (into {})))
 
 (defn setup-cytograph!
   [db tiddlymap-pos-info
@@ -379,27 +391,6 @@
                (element-renderer
                 db node-id render-output-el)))))))
 
-(defn get-tiddlymap-node-name-mapping [tiddler-db]
-  (->> tiddler-db
-       (map (fn [[node-name node-data]]
-              (if-let [tmap-id (get-in node-data [:metadata :tmap.id])]
-                [[node-name tmap-id]
-                 [tmap-id node-name]])))
-       (apply concat)
-       (into {})))
-
-(defn get-tiddlymap-positions-from-cytograph
-  [tiddler-db cytograph]
-  (->> (get-in
-        (cyto-codec/cytoscape-graph-to-data cytograph)
-        [:elements :nodes])
-       (map (fn [node]
-              (let [node-name (get-in node [:data :id])]
-                [(get-in tiddler-db
-                         [node-name :metadata :tmap.id])
-                 (:position node)])))
-       (remove (fn [[k _]] (nil? k)))
-       (into {})))
 
 (defn render-tiddlywiki-tags-edges! [db graph-object]
 
@@ -457,4 +448,13 @@
    (->> parsed-tid
         (tw/render-tid)
         (fio/simple-spit tiddler-path))))
+
+(defn get-tiddlymap-node-name-mapping [tiddler-db]
+  (->> tiddler-db
+       (map (fn [[node-name node-data]]
+              (if-let [tmap-id (get-in node-data [:metadata :tmap.id])]
+                [[node-name tmap-id]
+                 [tmap-id node-name]])))
+       (apply concat)
+       (into {})))
 
