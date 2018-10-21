@@ -40,21 +40,6 @@
      (->> (clj->js m)
           (.stringify js/JSON))))
 
-(defn render-tid-header [tid-header]
-  (->> tid-header
-       (map (fn [[k v]]
-              (str (name k)
-                   ": "
-                   (cond (aget v "date")
-                         (date-to-tid-timestamp v)
-
-                         (map? v)
-                         (map-to-json v)
-                         
-                         :else v))))
-       (interpose "\n")
-       (apply str)))
-
 (defn parse-tid-header [tid-content]
   (loop [remain (-> tid-content
                     (split-tid)
@@ -92,3 +77,24 @@
           :else
           {:header maybe-hdr
            :content (last spl)})))
+
+(defn render-tid-header [tid-header]
+  (->> tid-header
+       (map (fn [[k v]]
+              (str (name k)
+                   ": "
+                   (cond (some-> v (aget "date"))
+                         (date-to-tid-timestamp v)
+
+                         (map? v)
+                         (map-to-json v)
+                         
+                         :else v))))
+       (interpose "\n")
+       (apply str)))
+
+(defn render-tid [parsed-tid]
+  (str (-> (:header parsed-tid)
+           (render-tid-header))
+       "\n\n"
+       (:content parsed-tid)))
