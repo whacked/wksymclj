@@ -2,7 +2,6 @@
   (:require [cuerdas.core :as cstr]
             [clojure.string]
             [wksymclj.data-manipulation.simple-json :as json]
-            #?(:clj [clojure.data :as json])
             #?(:clj [clj-time.core :as time])
             #?(:clj [clj-time.format :as tfmt])
             #?(:cljs [cljs-time.core :as time])
@@ -38,7 +37,7 @@
      (json/write-str m))
   #?(:cljs
      (->> (clj->js m)
-          (.stringify js/JSON))))
+          (json/write-str))))
 
 (defn parse-tid-header [tid-content]
   (loop [remain (-> tid-content
