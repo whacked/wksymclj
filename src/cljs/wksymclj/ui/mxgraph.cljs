@@ -535,3 +535,11 @@
                                 target-node-value)]
     (.removeCells graph (clj->js [matching-edge]))
     true))
+
+(defn select-nodes [graph node-names]
+  (->> node-names
+       (map (fn [node-name]
+              (get-matching-node
+               graph {:name node-name})))
+       (apply array)
+       (.selectCellsForEvent graph)))

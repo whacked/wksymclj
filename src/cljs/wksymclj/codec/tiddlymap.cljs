@@ -189,3 +189,58 @@
            :content ""}}
          (tw/render-tid)
          (fio/simple-spit edgetype-tid-path))))
+
+;; NOTE TODO: watch out for :tags field being a string and not a coll
+(defn find-all-orphan-tiddler-names
+  "find all nodes that have no links (tags or edges)"
+  [tiddlywiki-tiddlers-dir tiddler-db]
+
+  (let [tm-position-map
+        (load-tiddlymap-position-info tiddlywiki-tiddlers-dir)
+
+        tm-node-mapping (->> tiddler-db
+                             (filter (fn [[_ tid]]
+                                       (-> (get-in tid [:metadata :tmap.id])
+                                           (empty?)
+                                           (not))))
+                             (map (fn [[relpath tid]]
+                                    [relpath
+                                     (get-in tid [:metadata :tmap.id])]))
+                             (into {}))
+
+        tm-tag-node-mapping (->> tiddler-db
+                                 (map (fn [[relpath tid]]
+                                        [(get-in tid [:metadata :title])
+                                         (tm-node-mapping relpath)]))
+                                 (into {}))
+
+        tm-tag-members (->> tiddler-db
+                            (map (fn [[relpath {:keys [metadata]}]]
+                                   (->> (clojure.string/split
+                                         (:tags metadata)
+                                         #"\s+")
+                                        (map (fn [tag]
+                                               (when-let [target-tmap-id
+                                                          (tm-tag-node-mapping tag)]
+                                                 [(tm-node-mapping relpath)
+                                                  target-tmap-id])))
+                                        (remove nil?))))
+                            (flatten)
+                            (into #{}))
+
+        tm-edge-members (->> tiddler-db
+                             (map (fn [[relpath {:keys [metadata]}]]
+                                    (->> (:tmap.edges metadata)
+                                         (map (fn [[edge-id edge-info]]
+                                                [(:tmap.id metadata) (get edge-info "to")])))))
+                             (flatten)
+                             (into #{}))]
+    (->> tiddler-db
+         (remove (fn [[relpath m]]
+                   (-> (tm-node-mapping relpath)
+                       (tm-tag-members))))
+         (remove (fn [[relpath m]]
+                   (let [tmap-id (tm-node-mapping relpath)]
+                     (tm-edge-members tmap-id))))
+         (map (fn [[relpath _]]
+                relpath)))))

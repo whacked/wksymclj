@@ -80,3 +80,12 @@
        (:elements)
        (:nodes)
        (map get-node-position)))
+
+(defn select-nodes [cytograph-object node-names]
+  (->> node-names
+       (map (fn [node-name]
+              (str "node[name=\"" node-name "\"]")))
+       (interpose ",")
+       (apply str)
+       (.elements cytograph-object)
+       (.select)))
