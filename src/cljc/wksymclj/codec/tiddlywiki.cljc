@@ -60,7 +60,9 @@
                         k
                         (case k
                           (:created :modified) (tid-timestamp-to-date v-str)
-                          (:tmap.style :tmap.edges) (json/read-str v-str) 
+                          (:tmap.style :tmap.edges) (json/read-str v-str)
+                          (:tags) (->> (clojure.string/split v-str #"\s+")
+                                       (remove empty?))
                           
                           v-str))))))))
 
@@ -87,6 +89,10 @@
 
                          (map? v)
                          (map-to-json v)
+
+                         (sequential? v)
+                         (->> (interpose v " ")
+                              (apply str))
                          
                          :else v))))
        (interpose "\n")

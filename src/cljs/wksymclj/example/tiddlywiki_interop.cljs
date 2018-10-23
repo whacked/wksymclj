@@ -498,8 +498,7 @@
                                (mx/get-matching-cell
                                 G {:name node-id})))]
     (doseq [[source-id source-entry] db]
-      (if-let [metadata-tags (-> (get-in source-entry [:metadata :tags])
-                                 (clojure.string/split #"\s+"))]
+      (if-let [metadata-tags (get-in source-entry [:metadata :tags])]
         (doseq [tag metadata-tags]
           (when-let [target-id (get title-map tag)]
             ;; (str source-id " --(" tag ")--> " target-id)

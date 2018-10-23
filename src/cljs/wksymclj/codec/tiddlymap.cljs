@@ -190,7 +190,6 @@
          (tw/render-tid)
          (fio/simple-spit edgetype-tid-path))))
 
-;; NOTE TODO: watch out for :tags field being a string and not a coll
 (defn find-all-orphan-tiddler-names
   "find all nodes that have no links (tags or edges)"
   [tiddlywiki-tiddlers-dir tiddler-db]
@@ -216,9 +215,7 @@
 
         tm-tag-members (->> tiddler-db
                             (map (fn [[relpath {:keys [metadata]}]]
-                                   (->> (clojure.string/split
-                                         (:tags metadata)
-                                         #"\s+")
+                                   (->> (:tags metadata)
                                         (map (fn [tag]
                                                (when-let [target-tmap-id
                                                           (tm-tag-node-mapping tag)]
