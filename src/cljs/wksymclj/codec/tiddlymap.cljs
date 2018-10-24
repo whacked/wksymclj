@@ -262,3 +262,61 @@
                      (tm-edge-members tmap-id))))
          (map (fn [[relpath _]]
                 relpath)))))
+
+(defn get-node-tid-close-relatives [tiddler-db node-id]
+  (when-let [entry (tiddler-db node-id)]
+    (let [entry-title (get-in entry [:metadata :title])
+          my-textual-tags (set (get-in entry [:metadata :tags]))
+          my-tiddlymap-id (get-in entry [:metadata :tmap.id])
+
+          tm-node-mapping (get-relpath-tmap-id-mapping tiddler-db)
+
+          tm-tag-node-mapping (get-title-tag-tmap-node-mapping
+                               tiddler-db tm-node-mapping)
+
+          ;; find tiddlers that my tags map to
+          tag-target-tiddlers (->> my-textual-tags
+                                   (map tm-tag-node-mapping)
+                                   (remove empty?)
+                                   (map tm-node-mapping))
+
+          ;; find tiddlers tagged by me
+          tiddlers-tagged-by-me (->> tiddler-db
+                                     (remove (fn [[relpath md-entry]]
+                                               (->> (get-in md-entry [:metadata :tags])
+                                                    (remove (fn [tag]
+                                                              (not= tag entry-title)))
+                                                    (empty?))))
+                                     (map (fn [[relpath _]]
+                                            relpath)))
+          
+          tiddlymap-edge-mapping (get-edge-mapping tiddler-db)
+          tiddlymap-edge-postrel (->> tiddlymap-edge-mapping
+                                      (map first)
+                                      (group-by first)
+                                      (map (fn [[k coll]]
+                                             [k (map last coll)]))
+                                      (into {}))
+          tiddlymap-edge-prerel (->> tiddlymap-edge-mapping
+                                     (map first)
+                                     (map reverse)
+                                     (map vec)
+                                     (group-by first)
+                                     (map (fn [[k coll]]
+                                            [k (map last coll)]))
+                                     (into {}))
+
+          ;; find post tiddlers
+          tiddlers-succeeding-me (->> (tiddlymap-edge-postrel my-tiddlymap-id [])
+                                      (map tm-node-mapping))
+          
+          ;; find pre tiddlers
+          tiddlers-preceding-me (->> (tiddlymap-edge-prerel my-tiddlymap-id [])
+                                     (map tm-node-mapping))
+          ]
+
+      {:tags my-textual-tags
+       :tags-link-to-tiddlers tag-target-tiddlers
+       :tiddlers-tagged-with-me tiddlers-tagged-by-me
+       :tiddlers-succeeding-me tiddlers-succeeding-me
+       :tiddlers-preceding-me tiddlers-preceding-me})))
