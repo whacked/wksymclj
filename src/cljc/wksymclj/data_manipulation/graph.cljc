@@ -23,6 +23,15 @@
   (spec/or :source-target (spec/tuple string? string?)
            :source-target-attr (spec/tuple string? string? map?)))
 
+(def example-flow-graph
+  {:node-list
+   [{:name "a"}
+    {:name "b"}
+    {:name "c"}]
+   :edge-list
+   [["a" "b"]
+    ["a" "c"]]})
+
 (def base-node-keys
   (->> (spec/describe ::VizNode)
        (drop-while (fn [item]
