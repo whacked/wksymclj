@@ -1,7 +1,9 @@
 (ns wksymclj.data-manipulation.graph
   (:require [wksymclj.data-manipulation.collection
              :as wk-coll]
-            [cljs.spec.alpha :as spec]))
+            [cljs.spec.alpha :as spec]
+            [schema.core :as scm
+             #?@(:cljs [:include-macros true])]))
 
 (spec/def ::x number?)
 (spec/def ::y number?)
@@ -49,6 +51,31 @@
             p2 (nth pt-seq (dec midn))]
         {:x (/ (+ (:x p1) (:x p2)) 2)
          :y (/ (+ (:y p1) (:y p2)) 2)}))))
+
+
+(def StateMatchConditionToken scm/Any)
+(def StateMatchEdgeLabel scm/Str)
+(def StateMatchStepId scm/Str)
+(def StateTransition
+  [StateMatchConditionToken
+   StateMatchEdgeLabel
+   StateMatchStepId])
+
+(def FlowGraphNodeUniqueId scm/Str)
+(def FlowGraphNode
+  {:name FlowGraphNodeUniqueId
+   (scm/optional-key :label) scm/Str ;; override displayed name at render time
+   (scm/optional-key :width) scm/Any
+   (scm/optional-key :height) scm/Any
+   ;; user defined
+   (scm/optional-key :type) scm/Any ;; example of common optional key
+   scm/Keyword scm/Any})
+
+(def FlowGraphEdgeProperties {scm/Keyword scm/Any})
+(def FlowGraphEdge
+  [FlowGraphNodeUniqueId
+   FlowGraphNodeUniqueId
+   FlowGraphEdgeProperties])
 
 (defn state-declaration-to-flow-graph
   "
