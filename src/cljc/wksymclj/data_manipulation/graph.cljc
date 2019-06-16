@@ -91,6 +91,8 @@
   {:node-list
    (->> state-declaration-list
         (map (fn [[type name label state-list & _]]
+               ;; this looks redundant re: node creation:
+               ;; it creates a node per state!
                (for [state state-list]
                  {:label label
                   :name name
@@ -126,3 +128,87 @@
                        (wk-coll/is-submap? world now-world))
                 next)))
        (filter identity)))
+
+(defn derive-pr->po-map
+  "edge of [pr-name po-name & attrs]
+  returns pr-name -> [po-name ...]"
+  [edges]
+  (->> edges
+       (map (fn [[pr-name po-name & _]]
+              {pr-name [po-name]}))
+       (apply merge-with concat)))
+
+
+(defn count-incoming-edges
+  "also want nodes to account for orphans"
+  [edges & [nodes]]
+  (let [pr-po-map (derive-pr->po-map edges)]
+    (merge
+     ;; create defaults to account for all
+     ;; nodes, including roots and orphans
+     (->> (concat
+           (map (fn [node]
+                  [(:name node) 0])
+                nodes)
+           (map (fn [[pr-name & _]]
+                  [pr-name 0])
+                edges))
+          (into {}))
+     ;; get incoming edge counts for
+     ;; connected nodes
+     (->> pr-po-map
+          (vals)
+          (apply concat)
+          (frequencies)))))
+
+(defn find-root-nodes [edges & [nodes]]
+  (->> (count-incoming-edges edges nodes)
+       (filter (fn [[k v]]
+                 (= 0 v)))
+       (map first)))
+
+(defn get-node-walk-to-leaf-coll
+  ([edges start-node-name]
+   (get-node-walk-to-leaf-coll
+    (derive-pr->po-map edges)
+    start-node-name
+    #{start-node-name}
+    [start-node-name]))
+  ([pr-po-map start-node-name visited walk-history]
+   (if-let [next-nodes (pr-po-map start-node-name)]
+     (->> next-nodes
+          (map (fn [next-node-name]
+                 (get-node-walk-to-leaf-coll
+                  pr-po-map
+                  next-node-name
+                  (conj visited next-node-name)
+                  (conj walk-history next-node-name))))
+          ;; ref the flatten algo; see
+          ;; https://clojuredocs.org/clojure.core/tree-seq; we
+          ;; want to find terminal entries in the nested seqs of
+          ;; `walk-history`s and extract the single-layer seqs,
+          ;; (identified by having `string?` as first item),
+          ;; which contain the unique walks
+          (tree-seq sequential? seq)
+          (rest)
+          (filter
+           (fn [item]
+             (and (sequential? item)
+                  (->> (first item)
+                       (string?))))))
+     walk-history)))
+
+(defn get-node-height
+  "number of edges to the leaf starting from a given node"
+  [edges node-name]
+  (->> (get-node-walk-to-leaf-coll edges node-name)
+       (map count)
+       (apply max)))
+
+(defn get-bandwidth
+  "length of longest edge (walk) from a root to a leaf"
+  [edges]
+  (let [root-nodes (find-root-nodes edges)]
+    (->> root-nodes
+         (map (partial get-node-height edges))
+         (apply max))))
