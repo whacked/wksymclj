@@ -1,7 +1,6 @@
 (ns wksymclj.ui.dagre
-  (:require [cljs.nodejs :as nodejs]))
+  (:require ["dagre" :as dagre]))
 
-(def dagre (nodejs/require "dagre"))
 (def dagre-layout (aget dagre "layout"))
 (def DagreGraph (aget dagre "graphlib" "Graph"))
 
@@ -9,7 +8,7 @@
 (def $svg-header {:version "1.1"
                   :baseProfile "full"
                   ;; :xmlns "http://www.w3.org/2000/svg"
-                  :style {:width "600px"
+                  :style {:width "100%"
                           :height "800px"
                           :border "2px dashed red"
                           :position "absolute"
