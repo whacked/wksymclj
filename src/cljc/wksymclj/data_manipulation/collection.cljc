@@ -34,3 +34,18 @@
          (every? identity
                  (map #(= (smaller %) (bigger %))
                       required-keys)))))
+
+;; from https://stackoverflow.com/a/15771713
+(defn map-all [f & colls]
+  (lazy-seq
+   (when (some seq colls)
+     (cons (apply f (map first colls))
+           (apply map-all f (map rest colls))))))
+
+(defn get-all-unique-keys [entry-colls]
+  (->> entry-colls
+       (map (fn [entry-coll]
+              (->> entry-coll
+                   (map keys))))
+       (flatten)
+       (distinct)))
