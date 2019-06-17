@@ -57,9 +57,9 @@
 (def StateMatchEdgeLabel scm/Str)
 (def StateMatchStepId scm/Str)
 (def StateTransition
-  [StateMatchConditionToken
-   StateMatchEdgeLabel
-   StateMatchStepId])
+  [(scm/one StateMatchConditionToken "any token")
+   (scm/one StateMatchEdgeLabel "any label string")
+   (scm/one StateMatchStepId "existing step id string")])
 
 (def FlowGraphNodeUniqueId scm/Str)
 (def FlowGraphNode
@@ -73,9 +73,13 @@
 
 (def FlowGraphEdgeProperties {scm/Keyword scm/Any})
 (def FlowGraphEdge
-  [FlowGraphNodeUniqueId
-   FlowGraphNodeUniqueId
-   FlowGraphEdgeProperties])
+  [(scm/one FlowGraphNodeUniqueId "source node id")
+   (scm/one FlowGraphNodeUniqueId "target node id")
+   (scm/one FlowGraphEdgeProperties "property map")])
+
+(def FlowGraph
+  {:node-list [FlowGraphNode]
+   :edge-list [FlowGraphEdge]})
 
 (defn state-declaration-to-flow-graph
   "
