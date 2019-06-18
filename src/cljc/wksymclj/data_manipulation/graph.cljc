@@ -152,7 +152,8 @@
      ;; nodes, including roots and orphans
      (->> (concat
            (map (fn [node]
-                  [(:name node) 0])
+                  [(or (:name node)
+                       (:id node)) 0])
                 nodes)
            (map (fn [[pr-name & _]]
                   [pr-name 0])
