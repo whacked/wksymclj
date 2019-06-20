@@ -83,8 +83,7 @@
             [:value :next] :do-some-work)))))
   
   (def $_fn-default-1-back-advancer
-    (slpm--make-default-advancer $task-seq))
-  
+    (protomat/slpm--make-default-advancer $task-seq))
 
   (def ordered-pattern-seq
     [completion-pattern
@@ -105,67 +104,64 @@
                         (take 9))]
     (println "START STATE LIST" state-list)
     (protomat/slpm--match-with-precedence
-     ordered-pattern-seq {} state-list)))
+     ordered-pattern-seq {} state-list))
 
-(comment
-  ;; OLD
-  (def task-progress (atom []))
-  ;; set up a deterministic pre->post step mapping
-  (def task-transition-spec
-    (map #(vector %1 %2 {})
-         (drop-last $task-seq)
-         (rest $task-seq)))
-  (defn advance-state! [completed-task-name]
-    (let [cur-progress (swap! task-progress conj completed-task-name)
-          fsm-status (slpm--match-with-precedence
-                      ordered-pattern-seq
-                      $reducers
-                      {}
-                      @task-progress)]
-      (if (:accepted? fsm-status)
-        (do (println "-- fsm --" fsm-status)
-            (js/alert (str "OK! next state: " (:value fsm-status))))
-        (doseq [task-key (grf/get-next-state-list
-                          task-transition-spec
-                          completed-task-name
-                          {})]
-          (dlog (str "%cTRANSITION TO NEW STATE " task-key) "color:gold;font-weight:bold;")
-          (protomat/trigger! task-key)))))
+  (do
+    ;; OLD
+    (def task-progress (atom []))
+    ;; set up a deterministic pre->post step mapping
+    (def task-transition-spec
+      (map #(vector %1 %2 {})
+           (drop-last $task-seq)
+           (rest $task-seq)))
+    (defn advance-state! [completed-task-name]
+      (let [cur-progress (swap! task-progress conj completed-task-name)
+            fsm-status (protomat/slpm--match-with-precedence
+                        ordered-pattern-seq
+                        {}
+                        @task-progress)]
+        (if (:accepted? fsm-status)
+          (do (println "-- fsm --" fsm-status)
+              (js/alert (str "OK! next state: " (:value fsm-status))))
+          (doseq [task-key (grf/get-next-state-list
+                            task-transition-spec
+                            completed-task-name
+                            {})]
+            (dlog (str "%cTRANSITION TO NEW STATE " task-key) "color:gold;font-weight:bold;")
+            (protomat/trigger! task-key)))))
 
-  (defn advance-state-in-ms! [from-state ms]
-    (js/setTimeout
-     (fn []
-       (advance-state! from-state)) ms))
-  (def mstate (atom {:current-task nil}))
-  (defn get-current-task []
-    (get-in @mstate [:current-task]))
+    (defn advance-state-in-ms! [from-state ms]
+      (js/setTimeout
+       (fn []
+         (advance-state! from-state)) ms))
+    (def mstate (atom {:current-task nil}))
+    (defn get-current-task []
+      (get-in @mstate [:current-task]))
 
-  (defn dummy-task-runner []
-    (let [cur-task (get-current-task)]
-      (protomat/dlog (str "running task: %c" cur-task)
-                     "font-weight:bold;color:white;background:black;")
-      (advance-state-in-ms! step 1000)))
-  
-  (let [handler-mapping {:begin dummy-task-runner
-                         :introduction dummy-task-runner
-                         :do-some-work dummy-task-runner
-                         :take-a-break dummy-task-runner
-                         :say-goodbye dummy-task-runner}]
-    (def EVCH (protomat/start-event-loop!
-               (fn [msg]
-                 (dlog "%c TRIGGER %s"
-                       (pr-str msg)
-                       "background:blue;color:white;font-weight:bold;")
-                 (protomat/set-time-trigger! nil)
-                 (let [task-key (:op msg)]
-                   ;; NOTE setting phase here!!
-                   (if-let [handler (handler-mapping task-key)]
-                     (handler task-key)
-                     (dlog (str "%cWARNING: no handler for " task-key)
-                           "color:white;background:red;font-weight:bold;"))
-                   (swap! mstate assoc :current-task task-key))))))
+    (defn dummy-task-runner []
+      (when-let [cur-task (get-current-task)]
+        (protomat/dlog (str "running task... %c" cur-task)
+                       "font-weight:bold;color:white;background:black;")
+        (advance-state-in-ms! cur-task 1000)))
+    
+    (let [handler-mapping {:begin dummy-task-runner
+                           :introduction dummy-task-runner
+                           :do-some-work dummy-task-runner
+                           :take-a-break dummy-task-runner
+                           :say-goodbye dummy-task-runner}]
+      (def EVCH (protomat/start-event-loop!
+                 (fn [msg]
+                   (dlog (str "%cTRIGGER "
+                              (pr-str msg))
+                         "background:blue;color:white;font-weight:bold;")
+                   (protomat/set-time-trigger! nil)
+                   (let [task-key (:op msg)]
+                     ;; NOTE setting phase here!!
+                     (if-let [handler (handler-mapping task-key)]
+                       (handler task-key)
+                       (dlog (str "%cWARNING: no handler for " task-key)
+                             "color:white;background:red;font-weight:bold;"))
+                     (swap! mstate assoc :current-task task-key))))))
 
-  (defn main []
+    ;; initialize the event sequence
     (protomat/trigger! :begin)))
-
-
