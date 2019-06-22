@@ -12,8 +12,6 @@
 ;; <common>
 (def state (atom {}))
 
-(def world (atom nil))
-
 (defn set-time-trigger!
   ([nil-op]
    (when-let [itv (get-in @state [:time-trigger :itv])]
