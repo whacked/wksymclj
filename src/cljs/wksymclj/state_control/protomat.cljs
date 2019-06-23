@@ -10,15 +10,13 @@
 ;; mini state management logic inspired by ztellman/automat
 
 ;; <common>
-(def state (atom {}))
-
 (defn set-time-trigger!
-  ([nil-op]
-   (when-let [itv (get-in @state [:time-trigger :itv])]
+  ([state-atom nil-op]
+   (when-let [itv (get-in @state-atom [:time-trigger :itv])]
      (js/clearTimeout itv))
-   (swap! state assoc :time-trigger {}))
-  ([op time f]
-   (when-let [itv (get-in @state [:time-trigger :itv])]
+   (swap! state-atom assoc :time-trigger {}))
+  ([state-atom op time f]
+   (when-let [itv (get-in @state-atom [:time-trigger :itv])]
      (js/clearTimeout itv))
    (let [[rel-time abs-time] (case op
                                :at [(- time (now-ms)) time]
@@ -26,22 +24,22 @@
          next-timer (->> rel-time
                          (js/setTimeout
                           (fn []
-                            (set-time-trigger! nil)
+                            (set-time-trigger! state-atom nil)
                             (f))))]
-     (swap! state assoc :time-trigger {:at abs-time
-                                       :itv next-timer}))))
+     (swap! state-atom assoc :time-trigger {:at abs-time
+                                            :itv next-timer}))))
 
-(defn set-state-time-now! [& ks]
-  (swap! state merge
+(defn set-state-time-now! [state-atom & ks]
+  (swap! state-atom merge
          (let [t (now-ms)]
            (zipmap ks (repeat (count ks) t)))))
 
-(defn get-time-until-trigger [& [now]]
+(defn get-time-until-trigger [state-atom & [now]]
   (let [now (or now (now-ms))
         get-sec (fn [k]
-                  (if-let [t (k @state)]
-                    (.toFixed (/ (- now (k @state)) 1000) 1)))]
-    (if-let [trigger-time (get-in @state [:time-trigger :at])]
+                  (if-let [t (k @state-atom)]
+                    (.toFixed (/ (- now (k @state-atom)) 1000) 1)))]
+    (if-let [trigger-time (get-in @state-atom [:time-trigger :at])]
       (- trigger-time now))))
 ;; </common>
 
@@ -55,8 +53,6 @@
                       :stream-index 0 ;; this advances with stream
                       :value nil})
 ;; </a-state init>
-
-
 
 
 ;; disallow spaces and commas in state names
@@ -212,6 +208,7 @@
    stream ;; task seq
    ]
   (loop [remain-pattern ordered-pattern-seq
+         index 0
          match-result nil]
     ;; NOTE: no rejected state expected or being captured
     (if (or (:accepted? match-result)
@@ -221,6 +218,7 @@
       ;; or an StringLikePatternMatcher
       (let [pattern-matcher (first remain-pattern)]
         (recur (rest remain-pattern)
+               (inc index)
                (assoc
                 (if (fn? pattern-matcher)
                   ;; straight function call;
@@ -240,17 +238,24 @@
                 :pattern pattern-matcher))))))
 
 ;; <event management>
-(def task-chan (chan 1))
+(def global-task-channel (chan 1))
 ;; (close! task-chan)
 
-(defn trigger! [op & {:keys [] :or {} :as msg}]
-  (go (>! task-chan (assoc msg :op op))))
+(defn trigger!
+  ([op]
+   (when nil (go (>! global-task-channel {:op op}))))
+  ([task-channel op & {:keys [] :or {} :as msg}]
+   (go (>! task-channel (assoc msg :op op)))))
 
-(defn start-event-loop! [dispatch-msg!]
-  (go-loop []
-    (when-let [msg (<! task-chan)]
-      (dispatch-msg! msg)
-      (recur))))
+(defn start-event-loop!
+  ([dispatch-msg!]
+   (when nil
+     (start-event-loop! global-task-channel dispatch-msg!)))
+  ([task-channel dispatch-msg!]
+   (go-loop []
+     (when-let [msg (<! task-channel)]
+       (dispatch-msg! msg)
+       (recur)))))
 
 (defn dlog [& args]
   (apply js/console.log args))
