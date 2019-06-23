@@ -3,7 +3,9 @@
                                      mult tap untap untap-all
                                      pub sub unsub unsub-all]]
             [wksymclj.nodejs-interface.time :refer [now-ms]]
-            [wksymclj.data-manipulation.collection :as wk-coll])
+            [wksymclj.data-manipulation.collection :as wk-coll]
+            [schema.core :as scm
+             :include-macros true])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]))
 
@@ -52,6 +54,11 @@
                       :start-index 0
                       :stream-index 0 ;; this advances with stream
                       :value nil})
+
+(def FsmValue
+  {(scm/optional-key :next) scm/Any
+   (scm/optional-key :history) [scm/Any]
+   scm/Any scm/Any})
 ;; </a-state init>
 
 
