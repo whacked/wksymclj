@@ -12,15 +12,15 @@
                          (dlog "%c PRE step" "color:orange;")
                          (dlog (clj->js w))
                          (assoc w :did-pre true))
-                  :run (fn [self w]
-                         (dlog "%c RUN step" "color:green;")
-                         (js/setTimeout
-                          (fn []
-                            (dlog "hello from main run")
-                            (dlog (clj->js w)))
-                          1000)
-                         (js/console.log "ran main")
-                         (assoc w :did-run true))
+                  :proc (fn [self w]
+                          (dlog "%c PROC step" "color:green;")
+                          (js/setTimeout
+                           (fn []
+                             (dlog "hello from main run")
+                             (dlog (clj->js w)))
+                           1000)
+                          (js/console.log "ran main")
+                          (assoc w :did-run true))
                   :post (fn [self w]
                           (dlog "%c POST step" "color:blue;")
                           (assoc w :did-post true))})

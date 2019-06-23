@@ -270,7 +270,8 @@
 (defn make-stepper [custom-spec]
   (let [ch (chan 1)
         spec (merge {:pre (fn [self w] (dlog "%cPRE" "color:orange;"))
-                     :run (fn [self w] (dlog "%cRUN" "color:green;"))
+                     ;; formally :run, renamed for conceptual separation from "run"
+                     :proc (fn [self w] (dlog "%cPROC" "color:green;"))
                      :post (fn [self w]
                              (dlog "%cPOST" "color:blue;"))
                      
@@ -284,8 +285,8 @@
                     custom-spec)]
     (assoc spec
            :runall
-           (let [xns {:pre :run
-                      :run :post
+           (let [xns {:pre :proc
+                      :proc :post
                       :post :-destroy!}
                  trigger-xns! (fn [state-name new-world]
                                 (go (>! ch [state-name new-world])))]
