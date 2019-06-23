@@ -1,5 +1,8 @@
 (ns wksymclj.example.protomat-runner
-  (:require [wksymclj.nodejs-interface.time :refer [now-ms]]
+  (:require [cljs.core.async :refer [chan <! >! close!
+                                     mult tap untap untap-all
+                                     pub sub unsub unsub-all]]
+            [wksymclj.nodejs-interface.time :refer [now-ms]]
             [wksymclj.state-control.protomat
              :refer [dlog]
              :as protomat]
@@ -108,6 +111,7 @@
 
   (do
     ;; OLD
+    (def task-channel (chan 1))
     (def task-progress (atom []))
     ;; set up a deterministic pre->post step mapping
     (def task-transition-spec
@@ -122,27 +126,31 @@
                         @task-progress)]
         (if (:accepted? fsm-status)
           (do (println "-- fsm --" fsm-status)
-              (js/alert (str "OK! next state: " (:value fsm-status))))
+              (if-let [next-state (get-in fsm-status [:value :next])]
+                (do
+                  (dlog (str "%cTRANSITION TO NEW STATE " next-state)
+                        "color:salmon;font-weight:bold;")
+                  (protomat/trigger! task-channel next-state))))
           (doseq [task-key (grf/get-next-state-list
                             task-transition-spec
                             completed-task-name
                             {})]
-            (dlog (str "%cTRANSITION TO NEW STATE " task-key) "color:gold;font-weight:bold;")
-            (protomat/trigger! task-key)))))
-
+            ;; XXX 2019-06-23 12:53:29 not clear why this should be the else case
+            (dlog (str "%cTRANSITION TO NEW STATE " task-key)
+                  "color:gold;font-weight:bold;")
+            (protomat/trigger! task-channel task-key)))))
+    
     (defn advance-state-in-ms! [from-state ms]
       (js/setTimeout
        (fn []
          (advance-state! from-state)) ms))
     (def mstate (atom {:current-task nil}))
-    (defn get-current-task []
-      (get-in @mstate [:current-task]))
 
-    (defn dummy-task-runner []
-      (when-let [cur-task (get-current-task)]
-        (protomat/dlog (str "running task... %c" cur-task)
-                       "font-weight:bold;color:white;background:black;")
-        (advance-state-in-ms! cur-task 1000)))
+    (defn dummy-task-runner [task-state-atom cur-task]
+      (protomat/dlog (str "running task... %c" cur-task)
+                     "font-weight:bold;color:white;background:black;")
+      (swap! task-state-atom assoc :current-task cur-task)
+      (advance-state-in-ms! cur-task 1000))
     
     (let [handler-mapping {:begin dummy-task-runner
                            :introduction dummy-task-runner
@@ -150,18 +158,17 @@
                            :take-a-break dummy-task-runner
                            :say-goodbye dummy-task-runner}]
       (def EVCH (protomat/start-event-loop!
-                 (fn [msg]
-                   (dlog (str "%cTRIGGER "
-                              (pr-str msg))
+                 task-channel
+                 (fn [{task-key :op
+                       :as msg}]
+                   (dlog (str "%cTRIGGER " (pr-str msg))
                          "background:blue;color:white;font-weight:bold;")
-                   (protomat/set-time-trigger! nil)
-                   (let [task-key (:op msg)]
-                     ;; NOTE setting phase here!!
-                     (if-let [handler (handler-mapping task-key)]
-                       (handler task-key)
-                       (dlog (str "%cWARNING: no handler for " task-key)
-                             "color:white;background:red;font-weight:bold;"))
-                     (swap! mstate assoc :current-task task-key))))))
-
+                   (protomat/set-time-trigger! mstate nil)
+                   ;; NOTE setting phase here!!
+                   (if-let [handler (handler-mapping task-key)]
+                     (handler mstate task-key)
+                     (dlog (str "%cWARNING: no handler for " task-key)
+                           "color:white;background:red;font-weight:bold;"))))))
+    
     ;; initialize the event sequence
-    (protomat/trigger! :begin)))
+    (protomat/trigger! task-channel :begin)))
