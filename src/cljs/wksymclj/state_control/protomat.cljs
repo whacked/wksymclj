@@ -289,9 +289,10 @@
                                   (dlog "WORLD IS NOW")
                                   (dlog (clj->js w))
                                   (close! ch))
-                     :-channel ch
-                     }
-                    custom-spec)]
+                     :-channel ch}
+                    (clojure.set/rename-keys
+                     {:run :proc}
+                     custom-spec))]
     (assoc spec
            :runall
            (let [xns {:pre :proc
