@@ -47,18 +47,27 @@
 
 
 ;; <a-state init>
-;; this state is special
-(def $a--base-status {:accepted? false
-                      :checkpoint nil
-                      :state-index 0
-                      :start-index 0
-                      :stream-index 0 ;; this advances with stream
-                      :value nil})
-
 (def FsmValue
   {(scm/optional-key :next) scm/Any
    (scm/optional-key :history) [scm/Any]
    scm/Any scm/Any})
+
+(def FsmBaseStatus
+  {:accepted? scm/Bool
+   :checkpoint scm/Any
+   :state-index scm/Int
+   :start-index scm/Int
+   :stream-index scm/Int ;; this advances with stream
+   :value scm/Any})
+
+;; this state is special
+(def $a--base-status
+  {:accepted? false
+   :checkpoint nil
+   :state-index 0
+   :start-index 0
+   :stream-index 0
+   :value nil})
 ;; </a-state init>
 
 
