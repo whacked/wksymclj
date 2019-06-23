@@ -2,17 +2,17 @@
 
 (defprotocol TaskProtocol
   "base task protocol"
-  (pre [self world] "actions preceding run")
-  (proc [self world] "body of task")
-  (post [self world] "actions after run")
+  (pre [self world] "-> world'; actions preceding run")
+  (proc [self world] "-> world'; body of task")
+  (post [self world] "-> world'; actions after run")
   (did-succeed?
-    [self world] "check if success criteria met")
+    [self world] "-> bool; check if success criteria met")
   (on-success
-    [self world] "fires immediately when success criteria met")
+    [self world] "-> world'; fires immediately when success criteria met")
   (did-fail?
-    [self world] "check if failure criteria met")
+    [self world] "-> bool; check if failure criteria met")
   (on-failure
-    [self world] "fires immediately when failure criteria met"))
+    [self world] "-> world'; fires immediately when failure criteria met"))
 
 (defn execute-one-shot [task world]
   "generic executor"
@@ -118,3 +118,44 @@
           (SoapboxRaceTaskConditionalAgain. "ferocious fighter")
           {:distance 0})
          (println "RESULT:"))))
+
+(comment
+  (do
+    (deftype AsyncTestTask [name]
+      TaskProtocol
+      (pre [self world]
+        (println "[" name "]" "running pre/" world)
+        (let [next-world
+              (-> world
+                  (update :distance (partial + 1))
+                  (assoc :stage "ignition"))]
+          ;; goloop method
+          ;; (go
+          ;;   (<! (timeout 2000))
+          ;;   (proc self next-world))
+          (js/setTimeout
+           (fn [] (proc self next-world))
+           2000)))
+      (proc [self world]
+        (println "[" name "]" "running proc/" world)
+        (let [next-world (-> world
+                             (update :distance (partial + 20))
+                             (assoc :stage "dashing"))]
+          ;; goloop method
+          ;; (go
+          ;;   (<! (timeout 1500))
+          ;;   (post self next-world))
+          (js/setTimeout
+           (fn [] (post self next-world))
+           1500)))
+      (post [self world]
+        (println "[" name "]" "running post/" world)
+        (let [next-world (-> world
+                             (update :distance (partial + 5))
+                             (assoc :stage "fall in the water"))]
+          (js/setTimeout
+           (fn [] (js/console.warn "END"))
+           1000))))
+    (let []
+      (pre (AsyncTestTask. "ASYNC-TESTER")
+           {:state "init"}))))
