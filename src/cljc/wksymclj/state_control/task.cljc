@@ -1,4 +1,13 @@
-(ns wksymclj.state-control.task)
+(ns wksymclj.state-control.task
+  #?(:cljs
+     (:require-macros
+      [cljs.core.async.macros :refer [go]]))
+  (:require #?(:clj
+               [clojure.core.async
+                :refer [go timeout]])
+            #?(:cljs
+               [cljs.core.async
+                :refer [timeout]])))
 
 (defprotocol TaskProtocol
   "base task protocol"
@@ -159,3 +168,51 @@
     (let []
       (pre (AsyncTestTask. "ASYNC-TESTER")
            {:state "init"}))))
+
+(defn run-sequentially!
+  "go-next!(world) must be called from runner to trigger advancement to the next state"
+  ([world          ;; world state representation, probably <map>
+    input-sequence ;; collection of input states to sequentially iterate over
+    runner         ;; (world, state, advance-to-next!) -> world' // function to be given each iterated state
+    on-complete ;; on-complete: (world) -> nil // function to call after sequence is exhausted
+    ]
+   (run-sequentially! 0 world input-sequence runner on-complete))
+  ([run-index world input-sequence runner on-complete]
+   (if (empty? input-sequence)
+     (on-complete world)
+     (let [input-data (first input-sequence)]
+       (runner
+        world input-data
+        (fn [next-world]
+          (run-sequentially!
+           (inc run-index)
+           next-world
+           (rest input-sequence)
+           runner
+           on-complete)))))))
+
+(comment
+  ;; run-sequentially! example
+  (let [trials ["a" "b" "c"]]
+    (run-sequentially!
+     {:t0 (.getTime (js/Date.))
+      :history []
+      :current nil}
+     trials
+     (fn runner [trial-world trial-data advance-to-next!]
+       (let [trial-number (inc (count (:history trial-world)))
+             next-world (-> trial-world
+                            (update-in [:history]
+                                       (fn [history]
+                                         (-> history
+                                             (vec)
+                                             (conj {:data trial-data
+                                                    :time (.getTime (js/Date.))}))))
+                            (assoc :current
+                                   trial-data))]
+         (println "working with input data //" trial-data)
+         (go
+           (<! (timeout 200))
+           (advance-to-next! next-world))))
+     (fn [trial-world]
+       (println "=== FINAL WORLD ===\n" trial-world)))))
