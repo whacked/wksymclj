@@ -1,7 +1,14 @@
 (ns wksymclj.codec.response-data
   (:require [clojure.string]
-            [wksymclj.data-manipulation.simple-json :as json]))
+            [wksymclj.data-manipulation.simple-json :as json]
+            [schema.core :as scm
+             #?@(:cljs [:include-macros true])]))
 
+(def Toer1Schema
+  {:time scm/Num
+   :onset scm/Num
+   :expected scm/Any
+   :received scm/Any})
 (defrecord Toer1 [time onset expected received])
 
 (defn rec->toer-v1 [clj-rec]
@@ -14,14 +21,20 @@
             [:time :onset :expected :received])
        (zipmap [:t :o :e :r])))
 
-(defrecord Sert1 [stimulus expected response time])
+(def Sert1Schema
+  {:stimulus scm/Num
+   :expected scm/Any
+   :received scm/Any
+   :time scm/Num
+   (scm/optional-key :rt) scm/Num})
+(defrecord Sert1 [stimulus expected received time rt])
 
 (defn rec->sert-v1 [clj-rec]
   (->> (map clj-rec
-            [:s :e :r :t])
+            [:s :e :r :t :rt])
        (apply Sert1.)))
 
 (defn sert-v1->rec [sert-rec]
   (->> (map sert-rec
-            [:stimulus :expected :response :time])
+            [:stimulus :expected :received :time :rt])
        (zipmap [:s :e :r :t])))
