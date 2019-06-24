@@ -25,16 +25,33 @@
   {:stimulus scm/Num
    :expected scm/Any
    :received scm/Any
-   :time scm/Num
-   (scm/optional-key :rt) scm/Num})
-(defrecord Sert1 [stimulus expected received time rt])
+   :time scm/Num})
+(defrecord Sert1 [stimulus expected received time])
 
 (defn rec->sert-v1 [clj-rec]
   (->> (map clj-rec
-            [:s :e :r :t :rt])
+            [:s :e :r :t])
        (apply Sert1.)))
 
 (defn sert-v1->rec [sert-rec]
   (->> (map sert-rec
-            [:stimulus :expected :received :time :rt])
+            [:stimulus :expected :received :time])
        (zipmap [:s :e :r :t])))
+
+(def Sertrt1Schema
+  {:stimulus scm/Num
+   :expected scm/Any
+   :received scm/Any
+   :time scm/Num
+   (scm/optional-key :rt) scm/Num})
+(defrecord Sertrt1 [stimulus expected received time rt])
+
+(defn rec->sertrt-v1 [clj-rec]
+  (->> (map clj-rec
+            [:s :e :r :t :rt])
+       (apply Sertrt1.)))
+
+(defn sertrt-v1->rec [sert-rec]
+  (->> (map sertrt-rec
+            [:stimulus :expected :received :time :rt])
+       (zipmap [:s :e :r :t :rt])))
