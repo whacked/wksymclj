@@ -14,10 +14,10 @@
 (defn rec->toer-v1 [clj-rec]
   (->> (map clj-rec
             [:t :o :e :r])
-       (apply Toer1.)))
+       (apply ->Toer1)))
 
 (defn toer-v1->rec [toer-rec]
-  (->> (map toer-rec
+  (->> (map (fn [k] (k toer-rec))
             [:time :onset :expected :received])
        (zipmap [:t :o :e :r])))
 
@@ -31,10 +31,10 @@
 (defn rec->sert-v1 [clj-rec]
   (->> (map clj-rec
             [:s :e :r :t])
-       (apply Sert1.)))
+       (apply ->Sert1)))
 
 (defn sert-v1->rec [sert-rec]
-  (->> (map sert-rec
+  (->> (map (fn [k] (k sert-rec))
             [:stimulus :expected :received :time])
        (zipmap [:s :e :r :t])))
 
@@ -49,9 +49,9 @@
 (defn rec->sertrt-v1 [clj-rec]
   (->> (map clj-rec
             [:s :e :r :t :rt])
-       (apply Sertrt1.)))
+       (apply ->Sertrt1)))
 
-(defn sertrt-v1->rec [sert-rec]
-  (->> (map sertrt-rec
+(defn sertrt-v1->rec [sertrt-rec]
+  (->> (map (fn [k] (k sertrt-rec))
             [:stimulus :expected :received :time :rt])
        (zipmap [:s :e :r :t :rt])))
