@@ -81,7 +81,9 @@
               (case pattern
                 :-bound-begin "^"
                 :-bound-end "$"
-                (str "(" (name pattern) ")"))))
+                (str "(" (if (keyword? pattern)
+                           (name pattern)
+                           pattern) ")"))))
        (interpose $SIGNAL-PATTERN-STRING-SEPARATOR)
        (apply str)
        (re-pattern)))
@@ -92,7 +94,9 @@
    $SIGNAL-PATTERN-STRING-SEPARATOR
    (->> signal-pattern
         (map (fn [pattern]
-               (str (name pattern))))
+               (if (keyword? pattern)
+                 (name pattern)
+                 (str pattern))))
         (interpose $SIGNAL-PATTERN-STRING-SEPARATOR)
         (apply str))
    $SIGNAL-PATTERN-STRING-SEPARATOR))
