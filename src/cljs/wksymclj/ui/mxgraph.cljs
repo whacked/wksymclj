@@ -204,7 +204,7 @@
        (clojure.string/join "")))
 
 (defn graph-viz-node-to-mx-node [orig-map]
-  {:pre [(spec/valid? ::grf/VizNode orig-map)]
+  {;; :pre [(spec/valid? ::grf/VizNode orig-map)]
    :post [(fn [out]
             (spec/valid? ::mxNode out))]}
   (let [converted (-> (apply dissoc orig-map mx-numeric-keys)

@@ -18,7 +18,7 @@
      pos)))
 
 (defn flowgraph-to-cytoscape-edge [flowgraph-edge]
-  {:pre [(spec/valid? ::grf/FlowgraphEdge flowgraph-edge)]}
+  ;; {:pre [(spec/valid? ::grf/FlowgraphEdge flowgraph-edge)]}
   (let [src (nth flowgraph-edge 0)
         tgt (nth flowgraph-edge 1)]
     (when-not (or (empty? src)
