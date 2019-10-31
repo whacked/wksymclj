@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+WKSYMCLJDIR=$(dirname $(realpath $0))
+
+for d in src/{clj,cljs,cljc}; do
+    src=$WKSYMCLJDIR/$d/wksymclj
+    tgt=./$d/wksymclj
+    echo "$src ==> $tgt"
+    CMD=$(ln -sf $src $tgt)
+done
