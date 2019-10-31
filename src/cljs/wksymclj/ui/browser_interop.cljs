@@ -9,7 +9,8 @@
     (aset "innerHTML" "")))
 
 (defn set-element-style! [dom-element style-map]
-  (doto dom-element
-    (-> (aget "style")
-        (js/Object.assign
-         (clj->js style-map)))))
+  (when dom-element
+    (doto dom-element
+      (-> (aget "style")
+          (js/Object.assign
+           (clj->js style-map))))))

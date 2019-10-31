@@ -166,6 +166,7 @@
     (when on-complete
       (.on gl-layout "initialised"
            on-complete))
+    
     (doto
         gl-layout
       (.registerComponent
@@ -185,4 +186,5 @@
                           (:label props) " @ " (:id props)
                           "</h2>"
                           "</div>")}})])}))
-      (.init))))
+      (.init))
+    ))

@@ -252,7 +252,6 @@
                            (map (partial
                                  merge {:width 100
                                         :height 40}))))))
-        
         mx-id2name
         (->> (dagre/get-node-id-mapping
               (:node-list my-flow-graph)
@@ -262,7 +261,7 @@
 
         filename->first-header
         (get-file-name-to-first-header-mapping db)
-        
+
         my-mxgraph
         (let [get-adjust (fn [which]
                            (->> tiddlymap-pos-info
@@ -285,7 +284,7 @@
              {:overflow "scroll"
               :border "2px solid red"
               }))
-          
+
           (-> (dagre/make-dagre
                (:node-list my-flow-graph)
                (:edge-list my-flow-graph))
@@ -315,7 +314,8 @@
                        cell
                        (update-in cell [:mxGeometry :Array]
                                   (fn [a]
-                                    (dissoc a :mxPoint))))))))
+                                    (dissoc a :mxPoint))))))
+                 cell))
               (mx/render-mxgraph-data-to-element! graph-container-el)
               (doto ((fn [mxgraph]
                        ;; HACK -- store the adjustment into the graph object
@@ -434,12 +434,22 @@
                         :edges (->> (file-db-to-flow-graph db)
                                     (:edge-list)
                                     (filter (fn [edge]
-                                              ;; FIXME: breaks on broken edge;
-                                              ;; but (and) on the filter might mean missing edge data?
-                                              (and
-                                               (has-node? (first edge))
-                                               (has-node? (second edge)))))
-                                    (map cyto-codec/flowgraph-to-cytoscape-edge))}
+                                              (let [first-node-exists? (has-node? (first edge))
+                                                    second-node-exists? (has-node? (second edge))]
+                                                (when-not first-node-exists?
+                                                  (js/console.warn
+                                                   (str "could not find left node: "
+                                                        (first edge) "\nin\n"
+                                                        edge)))
+                                                (when-not second-node-exists?
+                                                  (js/console.warn
+                                                   (str "could not find right node: "
+                                                        (second edge) "\nin\n"
+                                                        edge)))
+                                                (and first-node-exists?
+                                                     second-node-exists?))))
+                                    (map cyto-codec/flowgraph-to-cytoscape-edge))
+                        }
 
              :layout {:name "preset" ;; "cose"
                       }
@@ -452,6 +462,7 @@
         
         dragging-node (atom nil)
         ]
+    
     
     (render-tiddlymap-status-display!
      status-display-state
@@ -677,8 +688,7 @@
          (rdom/render
           [(fn []
              [:div
-              {:style {:width "100%"
-                       :border "1px solid red"}}
+              {:style {:width "100%"}}
               (->> (keys @selected-edges)
                    (map
                     (fn [[source-id target-id]]

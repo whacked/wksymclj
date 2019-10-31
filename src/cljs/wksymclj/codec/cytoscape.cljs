@@ -4,8 +4,7 @@
             ["cytoscape" :as cytoscape]))
 
 (defn flowgraph-to-cytoscape-node [flowgraph-node]
-  {:pre [(spec/valid? ::grf/FlowgraphNode flowgraph-node)
-         (or (:name flowgraph-node)
+  {:pre [(or (:name flowgraph-node)
              (:id flowgraph-node))]}
   (let [xy (select-keys flowgraph-node [:x :y])
         pos (if-not (empty? xy)
@@ -22,9 +21,11 @@
   {:pre [(spec/valid? ::grf/FlowgraphEdge flowgraph-edge)]}
   (let [src (nth flowgraph-edge 0)
         tgt (nth flowgraph-edge 1)]
-   {:data {:id (str "edge:" src "--" tgt)
-           :source src
-           :target tgt}}))
+    (when-not (or (empty? src)
+                  (empty? tgt))
+      {:data {:id (str "edge:" src "--" tgt)
+              :source src
+              :target tgt}})))
 
 (defn make-cytoscape-elements [node-list edge-list]
   (vec

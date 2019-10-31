@@ -11,29 +11,72 @@
 
 (.use cytoscape cytoscape-dagre)
 
-(defn apply-style-map!
-  [graph-object style-map & elements]
-  (let [apply-func
-        (case (graph-codec/get-graph-type graph-object)
-          :cytograph
-          #(cyto/set-element-style! % style-map)
-    
-          :mxgraph
-          #(mx/set-style graph-object % style-map))]
-    (doseq [element elements]
-      (apply-func element))))
+(do
+ 
+  (defprotocol GraphRenderer
+    (apply-style-map! [this style-map element-seq])
+    (highlight-nodes! [this element-seq])
+    (unhighlight-nodes! [this element-seq])
+    (highlight-edges! [this element-seq])
+    (unhighlight-edges! [this element-seq]))
+
+  (defrecord CytoscapeRenderer
+      [graph-object]
+      GraphRenderer
+      (apply-style-map!
+        [this style-map element-seq]
+        (doseq [element element-seq]
+          (cyto/set-element-style! element style-map)))
+      (highlight-nodes!
+        [this node-seq]
+        (apply-style-map!
+         this
+         {"background-color" "yellow"
+          "border-width" "4px"
+          "border-color" "red"}
+         node-seq))
+      (unhighlight-nodes!
+        [this node-seq]
+        (apply-style-map!
+         this
+         {"background-color" ""
+          "border-width" ""
+          "border-color" ""}
+         node-seq))
+      (highlight-edges!
+        [this edge-seq]
+        (apply-style-map!
+         this
+         {"width" "6"
+          "line-color" "yellow"
+          "target-arrow-color" "orange"}
+         edge-seq))
+      (unhighlight-edges!
+        [this edge-seq]
+        (apply-style-map!
+         this
+         {"width" "3"
+          "line-color" "gray"
+          "target-arrow-color" "green"}
+         edge-seq)))
+ 
+  (defrecord MxGraphRenderer
+      [graph-object]
+      GraphRenderer
+      (apply-style-map!
+        [this style-map element-seq]
+        (doseq [element element-seq]
+          (mx/set-style graph-object element style-map)))))
 
 (defn set-node-style-map!
   [graph-object node-name style-map]
   (case (graph-codec/get-graph-type graph-object)
     :cytograph
-    ;; node-id "tw/tiddlers/software.tid"
     (cyto/set-element-style!
      (cyto/get-node graph-object node-name)
      style-map)
     
     :mxgraph
-    ;; node-id "tw/tiddlers/software.tid"
     (mx/set-style
      graph-object
      (mx/get-matching-node

@@ -79,16 +79,18 @@
           ;; {:_id 4 :_parent 1 :mxGeometry
           ;;  :_value "Interval 3" :_vertex 1
           ;;  {:_x 40 :_y 140 :_width 260 :_height 30 :_as "geometry"}}
-          (let [geom (->> (map dagre-node [:width :height :x :y])
-                          (zipmap [:_width :_height :_x :_y])
-                          (merge {:_as "geometry"}))
-                node-name (:name dagre-node)
-                base {:_id (_node-id-mapping node-name)
-                      :_parent 1
-                      :_vertex 1}]
-            (->> (map dagre-node [:label])
-                 (zipmap [:_value])
-                 (merge base {:mxGeometry geom}))))
+          (if-not dagre-node
+            {}
+            (let [geom (->> (map dagre-node [:width :height :x :y])
+                            (zipmap [:_width :_height :_x :_y])
+                            (merge {:_as "geometry"}))
+                  node-name (:name dagre-node)
+                  base {:_id (_node-id-mapping node-name)
+                        :_parent 1
+                        :_vertex 1}]
+              (->> (map dagre-node [:label])
+                   (zipmap [:_value])
+                   (merge base {:mxGeometry geom})))))
 
         mx-cell-seq (->> dagre-nodes
                          (map dagre-node-to-mxgraph-vertex)

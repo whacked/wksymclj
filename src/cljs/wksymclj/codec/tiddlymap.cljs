@@ -29,13 +29,18 @@
         "graph_views_all_map.tid")))
 
 (defn load-tiddlymap-position-info [tiddlers-dir]
-  (-> tiddlers-dir
-      (get-tiddlymap-position-tiddlier-path)
-      (fio/simple-slurp)
-      (tw/parse-tid-content)
-      (:content)
-      (js/JSON.parse)
-      (js->clj)))
+  (try
+    (-> tiddlers-dir
+        (get-tiddlymap-position-tiddlier-path)
+        (fio/simple-slurp)
+        (tw/parse-tid-content)
+        (:content)
+        (js/JSON.parse)
+        (js->clj))
+    (catch js/Object e
+      (js/console.warn "failed to load tiddlymap position info")
+      (js/console.error e)
+      nil)))
 
 (defn is-valid-tiddlymap-position-struct? [pos-struct]
   (->> [(or (get pos-struct :x)

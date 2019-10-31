@@ -57,7 +57,7 @@
                       (->> data
                            (map
                             (fn [[k sub-data]]
-                              ^{:key sub-data}
+                              ^{:key (str "div-" k "-" sub-data)}
                               [:div
                                (->attr object-row-style)
                                [:div
@@ -74,7 +74,7 @@
                       (->> data
                            (map-indexed
                             (fn [i sub-data]
-                              ^{:key sub-data}
+                              ^{:key (str "li-" i "." sub-data)}
                               [:li
                                (->attr array-item-style)
                                (recurse sub-data)])))]
