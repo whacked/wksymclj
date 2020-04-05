@@ -1,7 +1,19 @@
 (ns wksymclj.ui.golden-layout
   (:require-macros [swiss.arrows :refer [-<>]])
   (:require [reagent.core :as r]
+            ;; GL needs these in window namespace
+            [react]
+            [react-dom]
+            ["jquery" :as jquery]
+            ["golden-layout" :as golden-layout]
             [goog.dom :as gdom]))
+
+;; GoldenLayout compat
+(aset js/window "React" react)
+(aset js/window "ReactDOM" react-dom)
+(aset js/window "$" jquery)
+(aset js/window "GoldenLayout" golden-layout)
+
 
 (comment
   ;; this follows the basic example (NOT the ReactJS version)
