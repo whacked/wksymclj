@@ -22,7 +22,7 @@
        (zipmap [:t :o :e :r])))
 
 (def Sert1Schema
-  {:stimulus scm/Num
+  {:stimulus scm/Any  ;; used to be scm/Num, not sure intent
    :expected scm/Any
    :received scm/Any
    :time scm/Num})
@@ -39,7 +39,7 @@
        (zipmap [:s :e :r :t])))
 
 (def Sertrt1Schema
-  {:stimulus scm/Num
+  {:stimulus scm/Any  ;; used to be scm/Num, not sure intent
    :expected scm/Any
    :received scm/Any
    :time scm/Num
