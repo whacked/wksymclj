@@ -58,6 +58,16 @@
 (def event-handlers
   (atom {:resize []}))
 
+(def $global-gl-object (atom nil))
+
+(defn set-global-layout! [golden-layout]
+  (reset! $global-gl-object golden-layout))
+
+(defn get-global-layout-config []
+  (some-> @$global-gl-object
+          (.toConfig)
+          (js->clj :keywordize-keys true)))
+
 (defn init-window-event-handers! []
   (doto js/window
     (.addEventListener
