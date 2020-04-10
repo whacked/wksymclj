@@ -68,6 +68,29 @@
           (.toConfig)
           (js->clj :keywordize-keys true)))
 
+(def $LOCAL-STORAGE-KEY "GoldenLayoutConfig")
+
+(defn load-config-from-local-storage! []
+  (let [stringified-config
+        (some-> (aget js/window "localStorage")
+                (.getItem $LOCAL-STORAGE-KEY))]
+    (when-not (empty? stringified-config)
+      (-> (.parse js/JSON stringified-config)
+          (js->clj :keywordize-keys true)))))
+
+(defn save-config-to-local-storage!
+  ([]
+   (some-> (get-global-layout-config)
+           (save-config-to-local-storage!)))
+  ([clj-config]
+   (when-let [stringified-config
+              (some->> clj-config
+                       (clj->js)
+                       (.stringify js/JSON))]
+     (-> (aget js/window "localStorage")
+         (.setItem $LOCAL-STORAGE-KEY stringified-config))
+     clj-config)))
+
 (defn init-window-event-handers! []
   (doto js/window
     (.addEventListener
