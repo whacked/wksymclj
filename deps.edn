@@ -1,0 +1,8 @@
+{:npm-deps {:dagre "0.8.5"
+            :cytoscape "^3.14.2"
+            :cytoscape-dagre "^2.2.2"
+
+            }
+ :deps {swiss-arrows {:mvn/version "1.0.0"}
+        }
+ }
