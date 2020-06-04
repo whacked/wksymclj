@@ -1,3 +1,4 @@
+;; [com.rpl/specter "1.1.3"]
 (ns wksymclj.codec.org-mode
   (:require [cljs.nodejs :as nodejs]
             [clojure.string]
