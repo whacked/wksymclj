@@ -1,11 +1,9 @@
 (ns wksymclj.nodejs-interface.fileio
-  (:require [cljs.nodejs :as nodejs]
+  (:require ["fs" :as fs]
+            ["path" :as path]
             [clojure.string])
   (:require-macros
    [swiss.arrows :refer [-<> -<>>]]))
-
-(def fs (nodejs/require "fs"))
-(def path (nodejs/require "path"))
 
 (def $USER-HOME js/process.env.HOME)
 

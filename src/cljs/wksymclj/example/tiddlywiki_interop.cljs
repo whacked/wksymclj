@@ -1,6 +1,5 @@
 (ns wksymclj.example.tiddlywiki-interop
-  (:require [cljs.nodejs :as nodejs]
-            [wksymclj.codec.tiddlywiki :as tw]
+  (:require [wksymclj.codec.tiddlywiki :as tw]
             [wksymclj.nodejs-interface.fileio :as fio]
 
             [goog.dom :as gdom]
@@ -18,19 +17,19 @@
             [wksymclj.ui.browser-interop :as browser]
             [wksymclj.codec.cytoscape :as cyto-codec]
 
-            [wksymclj.codec.org-mode :as wk-org])
+            [wksymclj.codec.org-mode :as wk-org]
+
+            ["glob" :as glob]
+            ["cytoscape" :as cytoscape])
    (:require-macros [swiss.arrows :refer [-<> -<>>]]))
 
 ;; there is a glob.sync method, but let's try to
 ;; concurrent-ize .org and .tid loaders.
 ;; sync  (.sync glob path)
 ;; async (glob path callback)
-(def glob (nodejs/require "glob"))
 
 ;; this assumes the mx files are included in the html!
 (def mxEvent js/mxEvent)
-
-(def cytoscape (nodejs/require "cytoscape"))
 
 (defn FileInfoStruct [filepath content]
   {:path filepath

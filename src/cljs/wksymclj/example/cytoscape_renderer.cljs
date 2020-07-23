@@ -1,13 +1,11 @@
 (ns wksymclj.example.cytoscape-renderer
-  (:require [cljs.nodejs :as nodejs]
+  (:require ["cytoscape" :as cytoscape]
             [goog.dom :as gdom]))
 
 ;; this is a direct port of http://js.cytoscape.org/demos/visual-style/
 
 ;; need to add package
-;; cytoscape
-
-(def cytoscape (nodejs/require "cytoscape"))
+;; npm install cytoscape
 
 (comment
   (cytoscape

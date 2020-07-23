@@ -1,9 +1,7 @@
 (ns wksymclj.codec.cytoscape
-  (:require [cljs.nodejs :as nodejs]
-            [wksymclj.data-manipulation.graph :as grf]
-            [cljs.spec.alpha :as spec]))
-
-(def cytoscape (nodejs/require "cytoscape"))
+  (:require [wksymclj.data-manipulation.graph :as grf]
+            [cljs.spec.alpha :as spec]
+            ["cytoscape" :as cytoscape]))
 
 (defn flowgraph-to-cytoscape-node [flowgraph-node]
   {:pre [(spec/valid? ::grf/FlowgraphNode flowgraph-node)

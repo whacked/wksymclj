@@ -1,11 +1,26 @@
 ;; [com.rpl/specter "1.1.3"]
 (ns wksymclj.codec.org-mode
-  (:require [cljs.nodejs :as nodejs]
-            [clojure.string]
-            [com.rpl.specter :as spct])
+  (:require [clojure.string]
+            [com.rpl.specter :as spct]
+            
+            ["org" :as Org]
+            ["org/lib/org/converter/converter.js" :as org-converter]
+            ["org/lib/org/node.js" :as org-node]
+            
+            ;; npm install --save
+            ;;   unified orga orga-unified orga-rehype
+            ;; NOTE: orga@0.5.2 seems to break. @0.5.1 seems ok
+            ["unified" :as unified-js]
+            ["orga" :as orga]
+            ["orga-unified" :as orga-uni-parser]
+            ["orga-rehype" :as orga-uni-translator]
+            ["hast-util-to-html" :as hast-to-html])
   (:require-macros
    [com.rpl.specter :refer [select transform]]))
 
+(def OrgParser (aget Org "Parser"))
+(def OrgConverter (aget org-converter "Converter"))
+(def OrgNode (aget org-node "Node"))
 
 (def $print-debug-to-console? true)
 (if $print-debug-to-console?
@@ -20,13 +35,6 @@
     (defn dlog [& _] nil)
     (defn dinfo [& _] nil)
     (defn dwarn [& _] nil)))
-
-(def Org (nodejs/require "org"))
-(def OrgParser (aget Org "Parser"))
-(def OrgConverter (aget (nodejs/require "org/lib/org/converter/converter.js")
-                        "Converter"))
-(def OrgNode (aget (nodejs/require "org/lib/org/node.js")
-                   "Node"))
 
 (def $org-js-html-class-prefix "org-")
 (def $org-js-html-id-prefix "org-")
@@ -847,16 +855,7 @@
 ;;;;;;;;;;;;;;;;;;;
 ;; ORGA ADDITION ;;
 ;;;;;;;;;;;;;;;;;;;
-;; npm install --save
-;;   unified orga orga-unified orga-rehype
-;; NOTE: orga@0.5.2 seems to break. @0.5.1 seems ok
-(def unified-js (nodejs/require "unified"))
-(def orga-parser (-> (nodejs/require "orga")
-                     (aget "Parser")))
-(def orga-uni-parser (nodejs/require "orga-unified"))
-(def orga-uni-translator (nodejs/require "orga-rehype"))
-(def hast-to-html (nodejs/require "hast-util-to-html"))
-
+(def orga-parser (aget orga "Parser"))
 (defn org->clj-ast
   "read an org string, convert it to unified AST,
    and convert that directly into edn"

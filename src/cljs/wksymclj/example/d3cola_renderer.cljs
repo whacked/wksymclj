@@ -1,5 +1,6 @@
 (ns wksymclj.example.d3cola-renderer
-  (:require [cljs.nodejs :as nodejs]))
+  (:require ["webcola" :as cola]
+            ["d3v4" :as d3]))
 
 ;; this is a direct port of http://ialab.it.monash.edu/webcola/examples/alignment.html
 
@@ -10,9 +11,6 @@
 (def width 800)
 (def height 400)
 
-
-(def cola (nodejs/require "webcola"))
-(def d3 (nodejs/require "d3v4"))
 
 (def d3cola
   (-> (.d3adaptor cola d3)

@@ -1,7 +1,8 @@
-(ns wksymclj.data-manipulation.xml
-  (:require [cljs.nodejs :as nodejs]))
+;; TODO: add dep
+;; npm install x2js
 
-(def X2JS (nodejs/require "x2js"))
+(ns wksymclj.data-manipulation.xml
+  (:require ["x2js" :as X2JS]))
 
 (defn xml->js [xml]
   (-> (new X2JS)

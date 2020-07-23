@@ -1,7 +1,6 @@
 (ns wksymclj.example.dagre-mx-together
   (:require [goog.dom :as gdom]
             [reagent.core :as r]
-            [cljs.nodejs :as nodejs]
             [wksymclj.nodejs-interface.fileio :as fio]
             
             [wksymclj.data-manipulation.graph

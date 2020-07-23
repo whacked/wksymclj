@@ -1,7 +1,6 @@
 (ns wksymclj.example.dagre-state-view
   (:require [goog.dom :as gdom]
             [reagent.core :as r]
-            [cljs.nodejs :as nodejs]
             
             [wksymclj.state-control.validation :as vald]
             [wksymclj.data-manipulation.graph

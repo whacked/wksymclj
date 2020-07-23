@@ -1,8 +1,9 @@
-(ns wksymclj.ui.colorization
-  (:require [cljs.nodejs :as nodejs]))
+;; TODO: add npm deps
+;; npm install object-hash color-hash
 
-(def ObjectHash (nodejs/require "object-hash"))
-(def ColorHash (nodejs/require "color-hash"))
+(ns wksymclj.ui.colorization
+  (:require ["object-hash" :as ObjectHash]
+            ["color-hash" :as ColorHash]))
 
 (defn to-hex-color [obj]
   (let [hash (ObjectHash (clj->js obj))]

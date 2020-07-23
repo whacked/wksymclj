@@ -1,6 +1,5 @@
 (ns wksymclj.ui.mxgraph
   (:require [goog.dom :as gdom]
-            [cljs.nodejs :as nodejs]
 
             [wksymclj.nodejs-interface.fileio :as fio]
             [wksymclj.data-manipulation.graph :as grf]

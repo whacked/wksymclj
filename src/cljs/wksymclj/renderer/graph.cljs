@@ -6,10 +6,10 @@
     :refer [underscoreify-keys]]
    [wksymclj.ui.cytoscape :as cyto]
    [wksymclj.codec.cytoscape :as cyto-codec]
-   [cljs.nodejs :as nodejs]))
+   ["cytoscape" :as cytoscape]
+   ["cytoscape-dagre" :as cytoscape-dagre]))
 
-(-> (nodejs/require "cytoscape")
-    (.use (nodejs/require "cytoscape-dagre")))
+(.use cytoscape cytoscape-dagre)
 
 (defn apply-style-map!
   [graph-object style-map & elements]
