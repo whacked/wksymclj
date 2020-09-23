@@ -855,7 +855,6 @@
 ;;;;;;;;;;;;;;;;;;;
 ;; ORGA ADDITION ;;
 ;;;;;;;;;;;;;;;;;;;
-(def orga-parser (aget orga "Parser"))
 (defn org->clj-ast
   "read an org string, convert it to unified AST,
    and convert that directly into edn"
@@ -881,8 +880,9 @@
                                (assoc out
                                       (keyword k)
                                       (js->clj data)))))))]
-     (-> (new orga-parser)
-         (.parse (preprocessor org-content))
+     (-> (js-invoke
+          orga "parse"
+          (preprocessor org-content))
          (to-clj)))))
 
 (defn clj-ast->hast [clj-ast]
