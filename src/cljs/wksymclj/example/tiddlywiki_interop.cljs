@@ -4,6 +4,7 @@
 
             [goog.dom :as gdom]
             [reagent.core :as r]
+            [reagent.dom :as rdom]
             
             [wksymclj.data-manipulation.graph :as grf]
             [wksymclj.ui.dagre :as dagre]
@@ -155,7 +156,7 @@
   (js/console.info "loading: " node-id "...")
   (if-let [node-data (db node-id)]
     (do
-      (r/render
+      (rdom/render
        [:div
         {:style {:width "100%"
                  :height "100%"
@@ -181,7 +182,7 @@
   [status-ratom
    status-display-el]
   (->> status-display-el
-       (r/render
+       (rdom/render
         [(fn []
            [:div
             {:style
@@ -669,7 +670,7 @@
         (get-tiddlymap-node-name-mapping
          @tiddler-db-atom)]
     (->> target-el
-         (r/render
+         (rdom/render
           [(fn []
              [:div
               {:style {:width "100%"

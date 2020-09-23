@@ -1,6 +1,7 @@
 (ns wksymclj.example.dagre-state-view
   (:require [goog.dom :as gdom]
             [reagent.core :as r]
+            [reagent.dom :as rdom]
             
             [wksymclj.state-control.validation :as vald]
             [wksymclj.data-manipulation.graph
@@ -255,7 +256,7 @@
   [target-el]
   (let [
         ]
-    (r/render
+    (rdom/render
      [(fn []
         (let [cur-graph-history-display-index (or (get-in @app-state [:graph-history-display :index])
                                                   (count @state-history))
@@ -483,7 +484,7 @@
   )
 
 (defn setup-graph-control-view! [target-el]
-  (r/render
+  (rdom/render
    [(fn []
       [:div
        [:h1 "controller"]
