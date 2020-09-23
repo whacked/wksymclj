@@ -21,9 +21,10 @@
 
             [wksymclj.codec.org-mode :as wk-org]
 
-            ["glob" :as glob]
             ["cytoscape" :as cytoscape])
    (:require-macros [swiss.arrows :refer [-<> -<>>]]))
+
+(def glob (fio/js-require "glob"))
 
 ;; there is a glob.sync method, but let's try to
 ;; concurrent-ize .org and .tid loaders.
@@ -399,7 +400,7 @@
      (load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
      (gdom/getElement "panel-A")
      (gdom/getElement "panel-C")))
-  
+
   (let [status-display-state (r/atom $base-tiddlymap-status-display)
 
         filename->first-header
@@ -424,6 +425,8 @@
                              (map (fn [cnode]
                                     (get-in cnode [:data :id])))
                              (into #{}))]
+          
+          
           (cytoscape
            (clj->js
             {:container graph-container-el
@@ -431,8 +434,11 @@
                         :edges (->> (file-db-to-flow-graph db)
                                     (:edge-list)
                                     (filter (fn [edge]
-                                              (or (has-node? (first edge))
-                                                  (has-node? (second edge)))))
+                                              ;; FIXME: breaks on broken edge;
+                                              ;; but (and) on the filter might mean missing edge data?
+                                              (and
+                                               (has-node? (first edge))
+                                               (has-node? (second edge)))))
                                     (map cyto-codec/flowgraph-to-cytoscape-edge))}
 
              :layout {:name "preset" ;; "cose"
@@ -443,7 +449,7 @@
                       :style {:curve-style "bezier"
                               :target-arrow-shape "triangle"}}]
              })))
-
+        
         dragging-node (atom nil)
         ]
     
