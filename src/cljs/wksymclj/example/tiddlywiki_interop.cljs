@@ -12,7 +12,8 @@
             [wksymclj.codec.tiddlymap :as tiddlymap]
 
             [wksymclj.ui.mxgraph :as mx
-             :refer [underscoreify-keys]]
+             :refer [mxEvent
+                     underscoreify-keys]]
             [wksymclj.ui.cytoscape :as cyto]
 
             [wksymclj.ui.browser-interop :as browser]
@@ -28,9 +29,6 @@
 ;; concurrent-ize .org and .tid loaders.
 ;; sync  (.sync glob path)
 ;; async (glob path callback)
-
-;; this assumes the mx files are included in the html!
-(def mxEvent js/mxEvent)
 
 (defn FileInfoStruct [filepath content]
   {:path filepath

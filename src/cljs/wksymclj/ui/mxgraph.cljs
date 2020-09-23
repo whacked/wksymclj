@@ -10,7 +10,9 @@
              :refer [xml->js js->xml]]
             [clojure.string]
             [cljs.spec.alpha :as spec]
-            [com.rpl.specter :as spct])
+            [com.rpl.specter :as spct]
+
+            ["mxgraph" :as mxgraph-loader])
   (:require-macros
    [swiss.arrows :refer [-<> -<>>]]
    [com.rpl.specter
@@ -21,30 +23,38 @@
 (def $this-namespace "wksymclj.ui.mxgraph")
 
 ;; mx dependencies
-(def mxGraph js/mxGraph)
-(def mxRubberband js/mxRubberband)
-(def mxUtils js/mxUtils)
-(def mxCodec js/mxCodec)
-(def mxConstants js/mxConstants)
-(def mxGraphView js/mxGraphView)
-(def mxStencil js/mxStencil)
-(def mxStencilRegistry js/mxStencilRegistry)
-(def mxCell js/mxCell)
+(def mxclient (mxgraph-loader))
+
+(def mxGraph           (aget mxclient "mxGraph"))
+(def mxEvent           (aget mxclient "mxEvent"))
+
+(def mxRubberband      (aget mxclient "mxRubberband"))
+(def mxUtils           (aget mxclient "mxUtils"))
+(def mxCodec           (aget mxclient "mxCodec"))
+(def mxConstants       (aget mxclient "mxConstants"))
+(def mxGraphView       (aget mxclient "mxGraphView"))
+(def mxStencil         (aget mxclient "mxStencil"))
+(def mxStencilRegistry (aget mxclient "mxStencilRegistry"))
+(def mxCell            (aget mxclient "mxCell"))
 
 (defn mx-load-xml-document [fpath]
   (-<> (fio/simple-slurp fpath)
        (.parseXml mxUtils <>)
        (aget "documentElement")))
 
+;;fio/path-join
+
 ;; the stylesheet is what enables rich shapes (ellipse, rhombus, etc)
 (def default-stylesheet
   (try
-    (mx-load-xml-document "resources/public/mxgraph/stylesheet.xml")
+    (mx-load-xml-document
+     (fio/path-join js/__dirname "mxgraph/stylesheet.xml"))
     (catch js/Object e
       nil)))
 
 ;; stencils enable specialized geometry
-(doseq [stencil-filepath ["resources/public/mxgraph/flowchart_stencil.xml"]]
+(doseq [stencil-filepath
+        [(fio/path-join js/__dirname "mxgraph/flowchart_stencil.xml")]]
   (let [root (mx-load-xml-document stencil-filepath)
         mx-package-name (-> root
                             (.getAttribute "name")
