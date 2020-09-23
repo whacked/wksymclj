@@ -1,6 +1,5 @@
 (ns wksymclj.codec.tiddlywiki
-  (:require [cuerdas.core :as cstr]
-            [clojure.string]
+  (:require [clojure.string]
             [wksymclj.data-manipulation.simple-json :as json]
             #?(:clj [clj-time.core :as time])
             #?(:clj [clj-time.format :as tfmt])

@@ -7,10 +7,12 @@
             [wksymclj.ui.mxgraph :as mx]
             [com.rpl.specter :as spct]
             [cljs-time.core :as time]
-            ["uuid/v4" :as uuidv4])
+            ["uuid" :as uuid])
   (:require-macros
    [com.rpl.specter :refer [select transform]]
    [swiss.arrows :refer [-<>>]]))
+
+(def uuidv4 (aget uuid "v4"))
 
 (def $TIDDLYMAP-EDGE-UNKNOWN-TYPE "tmap:unknown")
 (def $TIDDLYMAP-FILE-PREFIX "$__plugins_felixhayashi_tiddlymap_")
