@@ -1,11 +1,23 @@
 (ns wksymclj.nodejs-interface.fileio
-  (:require ["fs" :as fs]
-            ["path" :as path]
-            [clojure.string])
+  (:require [clojure.string])
   (:require-macros
    [swiss.arrows :refer [-<> -<>>]]))
 
 (def $USER-HOME js/process.env.HOME)
+
+(def js-require
+  (or (when js/window
+        ;; detect electron
+        (when-let [js-window-require (aget js/window "require")]
+          (when-let [remote (some-> (js-window-require "electron")
+                                    (aget "remote"))]
+            (fn [module-name]
+              (js-invoke remote "require" module-name)))))
+      (fn [module-name]
+        (js/require module-name))))
+
+(def fs (js-require "fs"))
+(def path (js-require "path"))
 
 ;; path
 (defn path-join [& argv]
@@ -16,6 +28,7 @@
     (func fpath)))
 
 (defn path-exists? [fpath]
+  ^boolean
   (.existsSync fs fpath))
 
 (defn node-expand-user [path]
@@ -23,9 +36,11 @@
 
 ;; io
 (defn simple-slurp [fpath]
+  ^js/String
   (.readFileSync fs fpath "utf-8"))
 
 (defn simple-spit [fpath content]
+  ^js/Object
   (.writeFileSync fs fpath content))
 
 (defn slurp-if-exists [fpath]
@@ -49,7 +64,8 @@
 
 (defn get-file-stat [filepath]
   (if (path-exists? filepath)
-    (-<>> (.statSync fs filepath)
+    (-<>> ^js/Object
+          (.statSync fs filepath)
           (.assign js/Object #js {})
           (js->clj <> :keywordize-keys true)
           (map (fn [[k v]]
