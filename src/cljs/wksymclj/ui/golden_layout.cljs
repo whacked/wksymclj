@@ -38,6 +38,8 @@
                      (clj->js config)
                      main-container)]
 
+      (reset! $global-gl-object gl-layout)
+
       ;; empty the container?
       (doto main-container
         (aset "innerHTML" "")
@@ -45,15 +47,15 @@
 
       (doto 
           gl-layout
-        (.registerComponent
-         _component-name
-         (fn [container component-state]
-           (-> container
-               (.getElement)
-               (.html (str "<h2>STUFF: "
-                           (.-label component-state)
-                           "</h2>")))))
-        (.init)))))
+          (.registerComponent
+           _component-name
+           (fn [container component-state]
+             (-> container
+                 (.getElement)
+                 (.html (str "<h2>STUFF: "
+                             (.-label component-state)
+                             "</h2>")))))
+          (.init)))))
 
 (def event-handlers
   (atom {:resize []}))
@@ -63,9 +65,12 @@
 (defn set-global-layout! [golden-layout]
   (reset! $global-gl-object golden-layout))
 
-(defn get-global-layout-config []
+(defn get-global-layout-config-js []
   (some-> @$global-gl-object
-          (.toConfig)
+          (.toConfig)))
+
+(defn get-global-layout-config []
+  (some-> (get-global-layout-config-js)
           (js->clj :keywordize-keys true)))
 
 (def $LOCAL-STORAGE-KEY "GoldenLayoutConfig")
@@ -141,6 +146,8 @@
         gl-layout (js/GoldenLayout.
                    (clj->js layout-spec)
                    container)]
+
+    (reset! $global-gl-object gl-layout)
     
     ;; empty the container?
     (doto container
