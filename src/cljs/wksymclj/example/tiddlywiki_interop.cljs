@@ -652,7 +652,7 @@
 
             :else
             (do
-              (js/oldconsole.log maybe-selection)))))
+              (js/console.log maybe-selection)))))
   
   (defn setup-cytograph-detect-edge-selection! [cytograph]
     (doto cytograph

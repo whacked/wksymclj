@@ -104,20 +104,24 @@
        (doseq [event-handler (:resize @event-handlers)]
          (event-handler evt))))))
 
-(defn make-react-subcomponent [component-name label]
+(defn make-react-subcomponent [component-name label config]
   (let [panel-id (str "panel-" label)]
-    {:type "react-component"
-     :component component-name
-     :title panel-id
-     :props {:id panel-id
-             :label label}}))
+    (merge (dissoc config :props)
+           {:type "react-component"
+            :component component-name
+            :title panel-id
+            :props (merge (:props config)
+                          {:id panel-id
+                           :label label})})))
 
 (defn convert-panel-config-edn [component-name panel-config]
   (if-let [react-component-label
            (:react-component panel-config)]
     (make-react-subcomponent
      component-name
-     react-component-label)
+     react-component-label
+     (dissoc panel-config
+             :react-component))
     (update panel-config
             :content (fn [sub-panel-coll]
                        (map (partial
