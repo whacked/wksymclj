@@ -50,7 +50,7 @@
     (mx-load-xml-document
      (fio/path-join js/__dirname "mxgraph/stylesheet.xml"))
     (catch js/Object e
-      nil)))
+      (js/console.warn "mxgraph stylesheet unavailable"))))
 
 ;; stencils enable specialized geometry
 (doseq [stencil-filepath
@@ -528,14 +528,17 @@
 (defn add-edge! [graph
                  source-vertex target-vertex
                  & [label style-map]]
-  (mx-transact!
-   graph
-   (fn []
-     (.insertEdge
-      graph
-      (.getDefaultParent graph)
-      nil label source-vertex target-vertex
-      (if style-map (clj->mx-style style-map))))))
+  (if-not (and source-vertex target-vertex)
+    (js/console.warn
+     (str "incomplete edge: [" source-vertex "] --> [" target-vertex "]"))
+    (mx-transact!
+     graph
+     (fn []
+       (.insertEdge
+        graph
+        (.getDefaultParent graph)
+        nil label source-vertex target-vertex
+        (if style-map (clj->mx-style style-map)))))))
 
 (defn remove-edge! [graph source-node-value target-node-value]
   (when-let [matching-edge
