@@ -57,10 +57,17 @@
       
       ;; process edges
       (doseq [[pr-name po-name edge-data] edge-list]
-        (if edge-data
-          (.setEdge graph pr-name po-name
-                    (clj->js edge-data))
-          (.setEdge graph pr-name po-name)))
+        ;; FIXME TODO: looks like self-tagged nodes end up with empty edges,
+        ;; which is possibly "technically correct". Should be handled upstream.
+        (if-not (and pr-name po-name)
+          (do
+            (js/console.warn
+             (str "incomplete edge: [" pr-name "] --> [" po-name "]")))
+          (if edge-data
+            (.setEdge graph pr-name po-name
+                      (clj->js edge-data))
+            (.setEdge graph pr-name po-name))))
+      
       (dagre-layout graph))
     graph))
 
