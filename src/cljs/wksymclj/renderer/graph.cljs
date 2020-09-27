@@ -163,3 +163,12 @@
      ;; UNVERIFIED
      :mxgraph
      {})))
+
+(defn zoom-to-node
+  [graph-object node-name]
+  (case (graph-codec/get-graph-type graph-object)
+    :cytograph
+    (cyto/zoom-to-node graph-object node-name)
+    
+    :mxgraph
+    (js/console.warn "not implemented")))

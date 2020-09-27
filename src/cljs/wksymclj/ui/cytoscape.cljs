@@ -89,3 +89,30 @@
        (apply str)
        (.elements cytograph-object)
        (.select)))
+
+(defn get-graph-dimensions [cytograph-object]
+  (-> cytograph-object
+      (.size)
+      (js->clj :keywordize-keys true)))
+
+(defn zoom-to-node
+  ([cytograph-object node-like]
+   (zoom-to-node cytograph-object node-like nil))
+  ([cytograph-object node-like padding]
+   (when-let [node (if (string? node-like)
+                     (get-node cytograph-object node-like)
+                     node-like)]
+     (let [{:keys [width height]} (get-graph-dimensions cytograph-object)
+           smaller-dimension (min width height)]
+       ;; animation-less method
+       #_(let [padding-ratio 0.4] 
+           (.fit cytograph-object
+                 node
+                 (* smaller-dimension padding-ratio)))
+
+       (let [{:keys [x y]} (-> (.position node)
+                               (js->clj :keywordize-keys true))]
+         (.animate cytograph-object
+                   (clj->js {:pan {:x (- (/ width 2) x)
+                                   :y (- (/ height 2) y)}
+                             :zoom 1})))))))
