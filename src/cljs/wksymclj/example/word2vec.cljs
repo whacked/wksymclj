@@ -24,7 +24,7 @@
   ([model words-string]
    (get-similar-words model words-string 10))
   ([model words-string limit]
-   (-> (.getSimilarWords w2v words-string (clj->js {:N limit}))
+   (-> ^js/Array (.getSimilarWords w2v words-string (clj->js {:N limit}))
        (js->clj :keywordize-keys true))))
 
 (comment
