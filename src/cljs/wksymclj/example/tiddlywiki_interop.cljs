@@ -11,9 +11,8 @@
             [wksymclj.codec.graph :as graph-codec]
             [wksymclj.codec.tiddlymap :as tiddlymap]
 
-            [wksymclj.ui.mxgraph :as mx
-             :refer [mxEvent
-                     underscoreify-keys]]
+            [wksymclj.ui.mxgraph :as mx :refer [mxEvent underscoreify-keys]]
+            
             [wksymclj.ui.cytoscape :as cyto]
 
             [wksymclj.ui.browser-interop :as browser]
@@ -210,165 +209,171 @@
              [:code
               (get-in @status-ratom [:status-message])]]])])))
 
-(defn get-tiddlymap-positions-from-mxgraph
-  [tiddler-db mxgraph]
-  (let [x-offset (aget mxgraph "x-offset")
-        y-offset (aget mxgraph "y-offset")]
-    (->> (mx/get-mxgraph-node-positions mxgraph)
-         (map (fn [[node-name pos]]
-                [(get-in tiddler-db
-                         [node-name :metadata :tmap.id])
-                 {"x" (- (get pos "x")
-                         x-offset)
-                  "y" (- (get pos "y")
-                         y-offset)}]))
-         (into {}))))
+(comment
+ 
+  ;; mxgraph functions no longer work
+  (defn get-tiddlymap-positions-from-mxgraph
+    [tiddler-db mxgraph]
+    (let [x-offset (aget mxgraph "x-offset")
+          y-offset (aget mxgraph "y-offset")]
+      (->> (mx/get-mxgraph-node-positions mxgraph)
+           (map (fn [[node-name pos]]
+                  [(get-in tiddler-db
+                           [node-name :metadata :tmap.id])
+                   {"x" (- (get pos "x")
+                           x-offset)
+                    "y" (- (get pos "y")
+                           y-offset)}]))
+           (into {}))))
 
-(defn setup-mxgraph!
-  [tiddlers-dir
-   db tiddlymap-pos-info
-   graph-container-el
-   render-output-el
-   status-display-el
-   & {:keys [element-renderer]
-      :or {element-renderer load-node-content-to-element!}}]
-  (comment
-    (def $TIDDLYWIKI-TIDDLERS-DIR "/tmp/tiddlers")
-    (def file-db (atom {}))
-    (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
-    (setup-mxgraph!
-     @file-db
-     (tiddlymap/load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
-     (gdom/getElement "panel-A")
-     (gdom/getElement "panel-C")))
-  
-  (let [status-display-state (r/atom $base-tiddlymap-status-display)
-        
-        my-flow-graph
-        (-> (file-db-to-flow-graph db)
-            (update :node-list
-                    (fn [node-list]
-                      (->> node-list
-                           (map (partial
-                                 merge {:width 100
-                                        :height 40}))))))
-        mx-id2name
-        (->> (dagre/get-node-id-mapping
-              (:node-list my-flow-graph)
-              2)
-             (map (fn [[k v]] [v k]))
-             (into {}))
+  (defn setup-mxgraph!
+    [tiddlers-dir
+     db tiddlymap-pos-info
+     graph-container-el
+     render-output-el
+     render-relevance-el
+     status-display-el
+     & {:keys [element-renderer]
+        :or {element-renderer load-node-content-to-element!}}]
+    (comment
+      (def $TIDDLYWIKI-TIDDLERS-DIR "/tmp/tiddlers")
+      (def file-db (atom {}))
+      (load-directory! $TIDDLYWIKI-TIDDLERS-DIR file-db)
+      (setup-mxgraph!
+       @file-db
+       (tiddlymap/load-tiddlymap-position-info $TIDDLYWIKI-TIDDLERS-DIR)
+       (gdom/getElement "panel-A")
+       (gdom/getElement "panel-C")))
+      
+    (let [status-display-state (r/atom $base-tiddlymap-status-display)
+            
+          my-flow-graph
+          (-> (file-db-to-flow-graph db)
+              (update :node-list
+                      (fn [node-list]
+                        (->> node-list
+                             (map (partial
+                                   merge {:width 100
+                                          :height 40}))))))
+          mx-id2name
+          (->> (dagre/get-node-id-mapping
+                (:node-list my-flow-graph)
+                2)
+               (map (fn [[k v]] [v k]))
+               (into {}))
 
-        filename->first-header
-        (get-file-name-to-first-header-mapping db)
+          filename->first-header
+          (get-file-name-to-first-header-mapping db)
 
-        my-mxgraph
-        (let [get-adjust (fn [which]
-                           (->> tiddlymap-pos-info
-                                (map (fn [[_ m]]
-                                       (m which)))
-                                (apply Math/min)
-                                (Math/abs)))
+          my-mxgraph
+          (let [get-adjust (fn [which]
+                             (->> tiddlymap-pos-info
+                                  (map (fn [[_ m]]
+                                         (m which)))
+                                  (apply Math/min)
+                                  (Math/abs)))
 
-              base-padding 10
-              adj-x (+ (get-adjust "x") base-padding)
-              adj-y (+ (get-adjust "y") base-padding)
+                base-padding 10
+                adj-x (+ (get-adjust "x") base-padding)
+                adj-y (+ (get-adjust "y") base-padding)
+                  
+                get-position-info (fn [node-name]
+                                    (when-let [file-info (db node-name)]
+                                      (let [tmap-id (get-in file-info [:metadata :tmap.id])]
+                                        (tiddlymap-pos-info tmap-id))))]
               
-              get-position-info (fn [node-name]
-                                  (when-let [file-info (db node-name)]
-                                    (let [tmap-id (get-in file-info [:metadata :tmap.id])]
-                                      (tiddlymap-pos-info tmap-id))))]
-          
-          (doto graph-container-el
-            (browser/set-element-style!
-             {:overflow "scroll"
-              :border "2px solid red"
-              }))
+            (doto graph-container-el
+              (browser/set-element-style!
+               {:overflow "scroll"
+                :border "2px solid red"}))
 
-          (-> (dagre/make-dagre
-               (:node-list my-flow-graph)
-               (:edge-list my-flow-graph))
-              (graph-codec/dagre-graph-to-mxgraph-data)
-              (mx/transform-cells-in-mxgraph
-               (fn [cell]
-                 (let [node-name (-> cell (:_id) (mx-id2name))
-                       override-label (or
-                                       ;; for anonymous tiddlers
-                                       (filename->first-header node-name)
-                                       ;; for normal tiddlers
-                                       (if node-name
-                                         (get-in
-                                          (db node-name)
-                                          [:metadata :title])))]
-                   (if-let [pos (get-position-info node-name)]
-                     (-> cell
-                         (assoc :_name node-name)
-                         (assoc :_value
-                                (or override-label node-name))
-                         (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x))
-                         (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y)))
-                     ;; remove the initial dagre layout because we are forcibly
-                     ;; repositioning the nodes, causing the edge positiongs to
-                     ;; be incorrect
-                     (if-not (:_edge cell)
-                       cell
-                       (update-in cell [:mxGeometry :Array]
-                                  (fn [a]
-                                    (dissoc a :mxPoint))))))
-                 cell))
-              (mx/render-mxgraph-data-to-element! graph-container-el)
-              (doto ((fn [mxgraph]
-                       ;; HACK -- store the adjustment into the graph object
-                       ;; for later conversion
-                       (aset mxgraph "x-offset" adj-x)
-                       (aset mxgraph "y-offset" adj-y))))))]
+            (-> (dagre/make-dagre
+                 (:node-list my-flow-graph)
+                 (:edge-list my-flow-graph))
+                (graph-codec/dagre-graph-to-mxgraph-data)
+                (mx/transform-cells-in-mxgraph
+                 (fn [cell]
+                   (let [node-name (-> cell (:_id) (mx-id2name))
+                         override-label (or
+                                         ;; for anonymous tiddlers
+                                         (filename->first-header node-name)
+                                         ;; for normal tiddlers
+                                         (if node-name
+                                           (get-in
+                                            (db node-name)
+                                            [:metadata :title])))]
+                     (if-let [pos (get-position-info node-name)]
+                       (-> cell
+                           (assoc :_name node-name)
+                           (assoc :_value
+                                  (or override-label node-name))
+                           (assoc-in [:mxGeometry :_x] (+ (pos "x") adj-x))
+                           (assoc-in [:mxGeometry :_y] (+ (pos "y") adj-y)))
+                       ;; remove the initial dagre layout because we are forcibly
+                       ;; repositioning the nodes, causing the edge positiongs to
+                       ;; be incorrect
+                       (if-not (:_edge cell)
+                         cell
+                         (update-in cell [:mxGeometry :Array]
+                                    (fn [a]
+                                      (dissoc a :mxPoint))))))
+                   cell))
+                (mx/render-mxgraph-data-to-element! graph-container-el)
+                (doto ((fn [mxgraph]
+                         ;; HACK -- store the adjustment into the graph object
+                         ;; for later conversion
+                         (aset mxgraph "x-offset" adj-x)
+                         (aset mxgraph "y-offset" adj-y))))))]
 
-    (defn mxgraph-handle-click
-      [sender evt]
-      (when-let [cell (.getProperty evt "cell")]
-        (when-let [node-name (-> (aget cell "id")
-                                 (js/parseInt)
-                                 (mx-id2name))]
-          (element-renderer
-           db node-name render-output-el))
-        (.consume evt)))
+      (defn mxgraph-handle-click
+        [sender evt]
+        (when-let [cell (.getProperty evt "cell")]
+          (when-let [node-name (-> (aget cell "id")
+                                   (js/parseInt)
+                                   (mx-id2name))]
+            (element-renderer
+             db node-name
+             render-output-el
+             render-relevance-el))
+          (.consume evt)))
 
-    (defn mxgraph-handle-mouse-wheel [evt]
-      (if (> 0 (aget evt "deltaY"))
-        (.zoomIn my-mxgraph)
-        (.zoomOut my-mxgraph))
-      (.preventDefault evt))
+      (defn mxgraph-handle-mouse-wheel [evt]
+        (if (> 0 (aget evt "deltaY"))
+          (.zoomIn my-mxgraph)
+          (.zoomOut my-mxgraph))
+        (.preventDefault evt))
+        
+      (render-tiddlymap-status-display!
+       status-display-state
+       status-display-el)
+        
+      (doto my-mxgraph
+        (.setPanning true)
+        (aset "panningHandler" "useLeftButtonForPanning" true)
+        (.addListener (aget mxEvent "CLICK")
+                      (fn [sender evt]
+                        (mxgraph-handle-click sender evt)))
+        (.addListener (aget mxEvent "CELLS_MOVED")
+                      (fn [sender evt]
+                        ;; sender is the mxGraph object
+                        (let [cell (aget evt "properties" "cells" 0)]
+                          (when (mx/is-vertex? cell)
+                            (when (@status-display-state
+                                   :auto-save-on-node-position-change?)
+                              (->> (get-tiddlymap-positions-from-mxgraph
+                                    db my-mxgraph)
+                                   (tiddlymap/save-tiddlymap-position-info
+                                    tiddlers-dir))
+                              (swap! status-display-state
+                                     assoc :status-message
+                                     (str
+                                      (js/Date.)
+                                      " saved positions")))))))
+        (-> (aget "container" "childNodes" 0)
+            (.addEventListener
+             "wheel" mxgraph-handle-mouse-wheel)))))
 
-    
-    (render-tiddlymap-status-display!
-     status-display-state
-     status-display-el)
-    
-    (doto my-mxgraph
-      (.setPanning true)
-      (aset "panningHandler" "useLeftButtonForPanning" true)
-      (.addListener (aget mxEvent "CLICK")
-                    (fn [sender evt]
-                      (mxgraph-handle-click sender evt)))
-      (.addListener (aget mxEvent "CELLS_MOVED")
-                    (fn [sender evt]
-                      ;; sender is the mxGraph object
-                      (let [cell (aget evt "properties" "cells" 0)]
-                        (when (mx/is-vertex? cell)
-                          (when (@status-display-state
-                                 :auto-save-on-node-position-change?)
-                            (->> (get-tiddlymap-positions-from-mxgraph
-                                  db my-mxgraph)
-                                 (tiddlymap/save-tiddlymap-position-info
-                                  tiddlers-dir))
-                            (swap! status-display-state
-                                   assoc :status-message
-                                   (str
-                                    (js/Date.)
-                                    " saved positions")))))))
-      (-> (aget "container" "childNodes" 0)
-          (.addEventListener
-           "wheel" mxgraph-handle-mouse-wheel)))))
+  )
 
 (defn get-tiddlymap-positions-from-cytograph
   [tiddler-db cytograph]
@@ -388,6 +393,7 @@
    db tiddlymap-pos-info
    graph-container-el
    render-output-el
+   render-relevance-el
    status-display-el
    & {:keys [element-renderer]
       :or {element-renderer load-node-content-to-element!}}]
@@ -473,8 +479,9 @@
            (fn [evt]
              (let [node (aget evt "target")
                    node-id (js-invoke node "id")]
-               (element-renderer
-                db node-id render-output-el))))
+               (element-renderer db node-id
+                                 render-output-el
+                                 render-relevance-el))))
       
       (.on "position"
            (fn [evt]
@@ -518,16 +525,16 @@
           (when-let [target-id (get title-map tag)]
             ;; (str source-id " --(" tag ")--> " target-id)
             (case (graph-codec/get-graph-type graph-object)
-              :mxgraph
-              (let [source-node (get-mx-node graph-object source-id)
-                    target-node (get-mx-node graph-object target-id)]
-                (mx/add-edge! graph-object
-                              source-node target-node
-                              "tagged with"
-                              {:strokeWidth 2
-                               :strokeColor "green"
-                               :labelBackgroundColor "yellow"
-                               :dashed true}))
+
+              ;; :mxgraph (let [source-node (get-mx-node graph-object source-id)
+              ;;                target-node (get-mx-node graph-object target-id)]
+              ;;            (mx/add-edge! graph-object
+              ;;                          source-node target-node
+              ;;                          "tagged with"
+              ;;                          {:strokeWidth 2
+              ;;                           :strokeColor "green"
+              ;;                           :labelBackgroundColor "yellow"
+              ;;                           :dashed true}))
               
               :cytograph
               (cyto/add-edge!
@@ -675,11 +682,9 @@
              (reset! selected-edges {})))))
 
   (case (graph-codec/get-graph-type graph-object)
-    :cytograph
-    (setup-cytograph-detect-edge-selection! graph-object)
-    
-    :mxgraph
-    (setup-mxgraph-detect-edge-selection! graph-object))
+    ;; :mxgraph (setup-mxgraph-detect-edge-selection! graph-object)
+
+    :cytograph (setup-cytograph-detect-edge-selection! graph-object))
 
   (let [tiddlymap-node-name-mapping
         (get-tiddlymap-node-name-mapping
@@ -743,13 +748,12 @@
                               :on-click (fn [_evt]
                                           (let [edge-type (:edge-type-input @link-action-status)]
                                             (case (graph-codec/get-graph-type graph-object)
-                                              :mxgraph
-                                              (mx/add-edge! graph-object
-                                                            (mx/get-matching-node
-                                                             graph-object {:name source-id})
-                                                            (mx/get-matching-node
-                                                             graph-object {:name target-id})
-                                                            edge-type)
+                                              ;; :mxgraph (mx/add-edge! graph-object
+                                              ;;                        (mx/get-matching-node
+                                              ;;                         graph-object {:name source-id})
+                                              ;;                        (mx/get-matching-node
+                                              ;;                         graph-object {:name target-id})
+                                              ;;                        edge-type)
 
                                               :cytograph
                                               (cyto/add-edge! graph-object
@@ -782,16 +786,15 @@
                              {:type "button"
                               :on-click (fn [_evt]
                                           (case (graph-codec/get-graph-type graph-object)
-                                            :mxgraph
-                                            (mx/remove-edge! graph-object
-                                                             (aget
-                                                              (mx/get-matching-node
-                                                               graph-object {:name source-id})
-                                                              "value")
-                                                             (aget
-                                                              (mx/get-matching-node
-                                                               graph-object {:name target-id})
-                                                              "value"))
+                                            ;; :mxgraph (mx/remove-edge! graph-object
+                                            ;;                           (aget
+                                            ;;                            (mx/get-matching-node
+                                            ;;                             graph-object {:name source-id})
+                                            ;;                            "value")
+                                            ;;                           (aget
+                                            ;;                            (mx/get-matching-node
+                                            ;;                             graph-object {:name target-id})
+                                            ;;                            "value"))
                                           
                                             :cytograph
                                             (cyto/remove-edge! graph-object source-id target-id))
