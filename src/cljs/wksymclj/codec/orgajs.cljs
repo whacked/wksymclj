@@ -4,7 +4,8 @@
   (:require
      ["unified" :as unified]
      ["orga-unified" :as orga-parse]
-     ["orga-rehype" :as orga-mutate]
+     ["orga-rehype" :as orga-ast-to-rehype-ast]
+     ["rehype-slug" :as add-slugs-to-headings]
      ["rehype-stringify" :as rehype-html]))
 
 (defn preprocess-org-src
@@ -23,7 +24,8 @@
 (defn org-string-to-html [org-string]
   (let [processor (-> (unified)
                       (.use orga-parse)
-                      (.use orga-mutate)
+                      (.use orga-ast-to-rehype-ast)
+                      (.use add-slugs-to-headings)
                       (.use rehype-html))]
     (-> processor
         (.processSync
