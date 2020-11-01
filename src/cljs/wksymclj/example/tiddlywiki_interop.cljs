@@ -388,6 +388,8 @@
        (remove (fn [[k _]] (nil? k)))
        (into {})))
 
+(defonce my-atom (atom nil))
+
 (defn setup-cytograph!
   [tiddlers-dir
    db tiddlymap-pos-info
@@ -435,10 +437,15 @@
           
           (cytoscape
            (clj->js
-            {:container graph-container-el
+            {:container (do
+                          (js/console.log graph-container-el)
+                          graph-container-el)
              :elements {:nodes cyto-nodes
                         :edges (->> (file-db-to-flow-graph db)
                                     (:edge-list)
+                                    (remove (fn [[src tgt & _]]
+                                              (or (nil? src)
+                                                  (nil? tgt))))
                                     (filter (fn [edge]
                                               (let [first-node-exists? (has-node? (first edge))
                                                     second-node-exists? (has-node? (second edge))]

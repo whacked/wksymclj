@@ -1,10 +1,11 @@
 (ns wksymclj.example.word2vec
   (:require [cljs.nodejs :as nodejs]
+            ["word2vec" :as w2v]
             [wksymclj.nodejs-interface.fileio :as fio]))
 
 ;; uses
 ;; https://github.com/LeeXun/word2vector
-(def w2v (nodejs/require "word2vector"))
+;; (def w2v (nodejs/require "word2vector"))
 
 ;; tried others
 ;; https://github.com/fourseasonslab/word2vec (sparse documentation)
@@ -18,6 +19,8 @@
   (throw "node version too low"))
 
 (defn load-model [model-filepath]
+(js/console.warn "LOAD MODEL we load" model-filepath)
+  (js/console.log w2v)
   (.load w2v model-filepath))
 
 (defn get-similar-words

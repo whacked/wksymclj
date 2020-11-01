@@ -147,7 +147,7 @@
                                {:react-component "C"}]}
                              {:react-component "D"}]}]}))
         
-        gl-layout (js/GoldenLayout.
+        gl-layout (GoldenLayout.
                    (clj->js layout-spec)
                    container)]
 
