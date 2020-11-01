@@ -1,0 +1,18 @@
+* gotchas
+
+if you are running a =cljs-repl=, and
+1. add a new dependency
+2. refresh lein repl and cljsbuild
+3. reload =cljs-repl=
+4. whatever you eval in the cljs-repl throws e.g.
+   =#object[ReferenceError ReferenceError: cuerdas is not defined]=
+
+make sure you also reloaded the node environment (like electron)
+
+* TODO problem with current tiddlers
+
+  - [ ] anonymous tiddlers are incomprehensible from tiddlymap
+  - [ ] need way to show related but not graph-linked nodes
+        - programmatically
+        - when visiting a node
+  - [ ] need a git diff amenable renderer
