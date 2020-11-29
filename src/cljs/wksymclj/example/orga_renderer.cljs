@@ -8,7 +8,6 @@
             [wksymclj.codec.org-mode :as wk-org]
             
             [com.rpl.specter :as spct]
-
             [wksymclj.ui.browser-interop
              :refer [clear-dom-element! set-element-style!]]
             [clojure.string]
