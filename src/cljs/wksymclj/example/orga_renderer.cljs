@@ -206,8 +206,6 @@
           (js/console.log)
           ;; (mx/render-mxgraph-xml-to-element! $target-el)
           )
-      ))
-
   (-> my-mxgraph
       (mx/get-xml-from-mxgraph)
       (js/console.log))
