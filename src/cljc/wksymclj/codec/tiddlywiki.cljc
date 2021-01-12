@@ -38,6 +38,36 @@
      (->> (clj->js m)
           (json/write-str))))
 
+(defn parse-tid-tags [tag-string]
+  (if-not tag-string
+    []
+    (let [trimmed (clojure.string/trim tag-string)
+          strlen (count trimmed)]
+      (loop [index 0
+             out []]
+        (if-not (< index strlen)
+          out
+
+          (if (= "[[" (subs trimmed index (+ 2 index)))
+            (let [end-bracket-index
+                  (clojure.string/index-of trimmed "]]" index)
+                  token (subs trimmed (+ 2 index) end-bracket-index)]
+              (recur
+               (+ 3 end-bracket-index)
+               (conj out token)))
+
+            (let [end-token-index
+                  (clojure.string/index-of trimmed " " index)
+
+                  token (if (nil? end-token-index)
+                          (subs trimmed index)
+                          (subs trimmed index end-token-index))]
+              (recur
+               (if (nil? end-token-index)
+                 strlen
+                 (+ 1 end-token-index))
+               (conj out token)))))))))
+
 (defn parse-tid-header [tid-content]
   (loop [remain (-> tid-content
                     (split-tid)
@@ -60,9 +90,7 @@
                         (case k
                           (:created :modified) (tid-timestamp-to-date v-str)
                           (:tmap.style :tmap.edges) (json/read-str v-str)
-                          (:tags) (->> (clojure.string/split v-str #"\s+")
-                                       (remove empty?))
-                          
+                          (:tags) (parse-tid-tags v-str)
                           v-str))))))))
 
 (defn parse-tid-content [tid-content]
