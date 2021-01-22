@@ -54,13 +54,39 @@
        (interpose "\n")
        (apply str)))
 
-(defn org-string-to-html [org-string]
-  (let [processor (-> (unified)
-                      (.use orga-parse)
-                      (.use orga-ast-to-rehype-ast)
-                      (.use add-slugs-to-headings
-                            {:prefix $ORG-HEADING-ID-PREFIX})
-                      (.use rehype-html))]
+(defn org-string-to-html [org-string & modifier-configs]
+  (comment
+    ;; modifier-configs is like
+    [orga-parse
+     orga-ast-to-rehype-ast
+     [add-slugs-to-headings
+      {:prefix $ORG-HEADING-ID-PREFIX}]
+     ;; ...
+     ]
+    ;; which gets converted to something like
+    (-> (unified)
+        (.use orga-parse)
+        (.use orga-ast-to-rehype-ast)
+        (.use add-slugs-to-headings
+              {:prefix $ORG-HEADING-ID-PREFIX})
+        (.use process-known-special-links)
+        (.use rehype-html)))
+  (let [processor
+        (reduce
+         (fn [unified-processor
+              modifier-config]
+           (if (sequential? modifier-config)
+             (apply (aget unified-processor "use")
+                    modifier-config)
+             (.use unified-processor modifier-config)))
+         (unified)
+         (concat
+          [orga-parse
+           orga-ast-to-rehype-ast
+           [add-slugs-to-headings
+            {:prefix $ORG-HEADING-ID-PREFIX}]]
+          modifier-configs
+          [rehype-html]))]
     (-> processor
         (.processSync
          (preprocess-org-src org-string))
