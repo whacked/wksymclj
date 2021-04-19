@@ -205,3 +205,73 @@
            
            :else
            data))))
+
+(def transform-to-indexed-tabular
+  #_(comment
+      (let [input {:stuff
+                   {:more [{:set "a"
+                            :hist [{:key 1}
+                                   {:key 2}]}
+                           {:set "b"
+                            :hist [{:key 3}
+                                   {:key 4}]}]}}
+            output [{[:stuff :more 0 :set] "a", [:stuff :more 0 :hist 0 :key] 1}
+                    {[:stuff :more 0 :set] "a", [:stuff :more 0 :hist 1 :key] 2}
+                    {[:stuff :more 1 :set] "b", [:stuff :more 1 :hist 0 :key] 3}
+                    {[:stuff :more 1 :set] "b", [:stuff :more 1 :hist 1 :key] 4}]
+
+            xfm (-> input
+                    (transform-to-indexed-tabular)
+                    (vec))]
+        (= xfm output)))
+  
+  (fn self
+    ([data]
+     (self data []))
+    ([data khist]
+     (self data khist {}))
+    ([data khist mmerge]
+     (cond (map? data)
+           (let [sequential-paths (find-paths-to-sequential-children data)
+                 shared (->> (reduce
+                              (fn [m path]
+                                (dissoc-in m path))
+                              data
+                              sequential-paths)
+                             (remove-all-empty-children)
+                             (filter (fn [[_ v]] v))
+                             (map (fn [[k v]]
+                                    [(conj khist k) v]))
+                             (into {})
+                             (collapse-tree-to-1-layer))]
+             
+             (if (empty? sequential-paths)
+               (->> data
+                    (map (fn [[k v]]
+                           [(conj khist k) v]))
+                    (into mmerge))
+               
+               (->> sequential-paths
+                    (map (fn [path]
+                           [path (get-in data path)]))
+
+                    (map
+                     (fn [[sequential-key
+                           sequential-vals]]
+                       (->> sequential-vals
+                            (map-indexed
+                             (fn [row-index val]
+                               (let [combined-key (vec (concat khist sequential-key [row-index]))]
+                                 (self val combined-key shared)))))))
+                    (flatten))))
+
+           (sequential? data)
+           (->> data
+                (map-indexed
+                 (fn [i subd]
+                   (js/console.log i (pr-str subd))
+                   (self subd khist mmerge)))
+                (apply concat))
+           
+           :else
+           data))))
